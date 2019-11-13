@@ -1,0 +1,18 @@
+---
+title: "stat139_project"
+author: "Evan Arnold and Caleb Ren"
+date: "11/13/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = T)
+```
+
+## EDA
+
+```{r read}
+vsrr <- read.csv(url("https://data.cdc.gov/api/views/xkb8-kh2a/rows.csv"))
+deaths <- subset(vsrr, Indicator == "Number of Deaths")
+View(vsrr)
+```
