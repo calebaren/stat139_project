@@ -144,6 +144,10 @@ lines(y ~ x, col = "red", lwd = 3)
 
 \section{Results}
 
+```{r}
+require(lme4)
 
+lmer.model <- lmer(overdoseDeaths ~ (1 + unemployment + (year * month) | state), data = overdose)
+```
 
 \section{Conclusions and Decisions}
