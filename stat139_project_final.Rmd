@@ -1,0 +1,149 @@
+---
+title: "Drugs and Jobs: The effect of unemployment on drug overdose deaths in America"
+author: "Evan Arnold and Caleb Ren"
+date: "12/06/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, cache = T, fig.height = 4, fig.align = 'center',
+                      message = F, warning = F)
+set.seed(139)
+```
+
+\section{Introduction and Motivation}
+
+\section{Exploratory Data Anslysis Methods}
+
+\subsection{Data Summary}
+
+As a next step in our project, we collected data from the CDC in the form of the Vital Statistics Rapid Release dataset (VSRR). The VSRR data contains provisional counts of drug overdose deaths in the US as reported by agencies from all 50 states and the District of Columbia. The data is collected in on a monthly basis.
+
+The data of import to this project is the number of deaths in each state as a result of drug overdose. Drug overdoses are counted by state agencies in acordance to World Health Organization standards, which lay out the basic guides for reporting agencies to code and classify causes of death. Drug categories that are represented in this dataset include the major drivers of the opioid epidemic like heroin (coded by T40.1), natural opioid analgesics (morphine and codeine), synthetic opioids (oxycodone, hydrocodone, oxymorphone; T40.2), methadone (T40.3), other synthetics (fentanyl, tramadol; T40.4) and other drugs like cocaine, methamphetamine, etc.
+
+There were over 26052 data points from the VSRR dataset. Of those data points, many are individual observation of different coded deaths from different drugs; after reshaping and data cleaning, there are now 2652 individual observations. The data ranges from 2015 to 2019, with each state reporting 52 observations (once per month). Overdose deaths range from 55 deaths in the month of May 2015 in South Dakota to a high of 5697 in Pennsylvania in September of 2017.
+
+```{r}
+# overdose dataset 
+overdose <- read.csv("data/overdose.csv")
+
+# remove columns
+bad.cols <- c("Period", "Percent.Complete", "Percent.Pending.Investigation", 
+              "State.Name", "Footnote", "Footnote.Symbol", "Predicted.Value")
+overdose <- overdose[,!(colnames(overdose) %in% bad.cols)]
+
+# reshape dataframe to wide format
+overdose <- reshape(overdose, idvar = c("State", "Year", "Month"), 
+                    timevar = "Indicator", direction = "wide")
+
+# proper column naames
+names <- c("state", "year", "month", "overdoseDeaths", 
+           "natural.semiSynthetic.synthetic.methadone", 
+           "opioids", "cocaine", "stimulants", "deaths", 
+           "synthetic.noMethadone", "heroin", 
+           "natural.semiSynthetic.methadone", 
+           "natural.semiSynthetic", "percentSpecified", 
+           "methadone")
+colnames(overdose) <- names
+
+# remove aggregate statistics
+overdose <- overdose[!(overdose$state %in% c("US", "YC")),]
+overdose$state <- droplevels(overdose$state)
+
+# reformat month to ordered factor
+months.levels <- c("January", "February", "March", "April", "May", "June", 
+                   "July", "August", "September", "October", "November", "December")
+months.labels <- unname(sapply(tolower(months.levels), function(x) substr(x, 1, 3)))
+overdose$month <- ordered(overdose$month, levels = months.levels, labels = months.labels)
+```
+
+Unemployment data was sourced from the Bureau of Labor Statistics. Unemployment data is published in monthly increments from the Bureau of Labor Statistics by state. Data is published beginning in 1976 and is published on the first of each month describing the previous month's unemployment rate.
+
+There is a very specific definition of who in the labor force is considered *unemployed*. According to the BLS, those who are currently unemployed are those who are "jobless, looking for a job, and avaiable for work." People who are incarcerated, in a nursing home, or in a mental health care facility are not considered unemployed as they are not fit for work.
+
+Using this definition, data was scraped from the BLS website and aggregated by each state and the District of Columbia. The unemployment rate in percent is given by the `unemployment` column. The lowest unemployment rate in a given state and month is Vermont in 2019 with a 2.1% unemployment rate. The highest rate is DC in 2015 with a 7.4% unemployment rate. The data itself is roughly Normally distributed with a mean of 4.2% and a median of 4.31%.
+
+```{r}
+# iterate through state data files 
+unemployment <- data.frame()
+for (file in list.files("data/state", full.names = T)) {
+  
+  # state name and data
+  state <- substr(basename(file), 1, 2)
+  data <- read.csv(file)
+  data$state <- rep(state, nrow(data))
+  
+  # year and month
+  data$year <- sapply(data$DATE, function(x) as.numeric(substr(x, 1, 4)))
+  data <- data[data$year >= 2015,]
+  month <- sapply(data$DATE, function(x) as.numeric(substr(x, 6, 7)))
+  month <- ordered(month, labels = months.labels)
+  data$month <- month
+  colnames(data)[2] <- "unemployment"
+  
+  # record state data
+  unemployment <- rbind(unemployment, data)
+}
+colnames(unemployment)[2] <- "unemployment"
+unemployment <- unemployment[,-1] # drop default date column
+
+# merge datasets
+overdose <- merge(overdose, unemployment, by = c("state", "year", "month"))
+
+# order
+overdose <- overdose[order(overdose$year, overdose$state, overdose$month),]
+```
+
+\subsection{EDA}
+
+```{r}
+# histogram and boxplot of response
+par(mfrow = c(2, 2), mar = c(2, 1, 1, 1))
+hist(overdose$overdoseDeaths, main = "Histogram of Overdose Deaths", 
+     xlab = "Overdose Deaths")
+boxplot(overdose$overdoseDeaths, main = "Boxplot of Overdose Deaths", 
+        xlab = "Overdose Deaths")
+
+# histogram and boxplot of log-response
+hist(log(overdose$overdoseDeaths), main = "Histogram of Log-Overdose Deaths", 
+     xlab = "Log-Overdose Deaths")
+boxplot(log(overdose$overdoseDeaths), main = "Boxplot of Log-Overdose Deaths", 
+        xlab = "Log-Overdose Deaths")
+```
+
+We see that the data is much closer to a Normal distribution if we apply a log transformation.
+
+```{r}
+# response vs. unemployment
+par(mfrow = c(1, 1))
+plot(overdoseDeaths ~ unemployment, data = overdose,
+     main = "Overdose Deaths vs. Unemployment",
+     xlab = "Unemployment Percent", ylab = "Overdose Deaths",
+     pch = 16, col = rgb(0, 0, 0, 0.3))
+```
+
+\subsection{Baseline Model}
+
+```{r}
+# simple linear model
+summary(lm1 <- lm(overdoseDeaths ~ unemployment, data = overdose))
+```
+
+The simple regression model has a positive coefficient for unemployment ($155.25$). With a $t$-statistic of $7.267$ ($p$-value $< 0.0001$), this coefficient is very significant. The model has a positive association between unemployment and overdose deaths. 
+
+```{r}
+# observations with simple regression line
+plot(overdoseDeaths ~ unemployment, data = overdose,
+     main = "Overdose Deaths vs. Unemployment",
+     xlab = "Unemployment Percent", ylab = "Overdose Deaths",
+     col = rgb(0, 0, 0, 0.3), pch = 16)
+x <- seq(min(overdose$unemployment), max(overdose$unemployment), 0.01)
+y <- predict(lm1, newdata = data.frame(unemployment = x))
+lines(y ~ x, col = "red", lwd = 3)
+```
+
+\section{Results}
+
+
+
+\section{Conclusions and Decisions}
