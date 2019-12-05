@@ -57,6 +57,29 @@ months.labels <- unname(sapply(tolower(months.levels), function(x) substr(x, 1, 
 overdose$month <- ordered(overdose$month, levels = months.levels, labels = months.labels)
 ```
 
+```{r censusapi, include=FALSE}
+require("censusapi")
+Sys.setenv(CENSUS_KEY = '3473513fa1cde2a0539bd2449749c5a3a4fc45ce')
+readRenviron("~/.Renviron")
+Sys.getenv("CENSUS_KEY")
+
+# list census apis
+apis <- listCensusApis()
+View(apis)
+
+# test call
+tracts <- NULL
+for (f in fips) {
+    stateget <- paste("state:", f, sep="")
+    temp <- getCensus(name = "sf3",
+        vintage = 1990,
+        vars = c("P0070001", "P0070002", "P114A001"),
+        region = "tract:*",
+        regionin = stateget)
+    tracts <- rbind(tracts, temp)
+}
+head(tracts)
+```
 Unemployment data was sourced from the Bureau of Labor Statistics. Unemployment data is published in monthly increments from the Bureau of Labor Statistics by state. Data is published beginning in 1976 and is published on the first of each month describing the previous month's unemployment rate.
 
 There is a very specific definition of who in the labor force is considered *unemployed*. According to the BLS, those who are currently unemployed are those who are "jobless, looking for a job, and avaiable for work." People who are incarcerated, in a nursing home, or in a mental health care facility are not considered unemployed as they are not fit for work.
@@ -144,10 +167,5 @@ lines(y ~ x, col = "red", lwd = 3)
 
 \section{Results}
 
-```{r}
-require(lme4)
-
-lmer.model <- lmer(overdoseDeaths ~ (1 + unemployment + (year * month) | state), data = overdose)
-```
 
 \section{Conclusions and Decisions}
