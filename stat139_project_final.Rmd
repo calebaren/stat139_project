@@ -356,16 +356,11 @@ rmse <- function(m, o){
 
 # simple linear model
 summary(lm1 <- lm(log(overdoseDeaths) ~ unemployment, data = train))
-lm1.train <- rmse(predict(lm1, train), train$overdoseDeaths)
-lm1.test <- rmse(predict(lm1, test), test$overdoseDeaths)
-
-# log linear model
-summary(lm2 <- lm(log(overdoseDeaths) ~ unemployment, data = train))
-lm2.train <- rmse(exp(predict(lm2, train)), train$overdoseDeaths)
-lm2.test <- rmse(exp(predict(lm2, test)), test$overdoseDeaths)
+lm1.train <- rmse(predict(lm1, train), log(train$overdoseDeaths))
+lm1.test <- rmse(predict(lm1, test), log(test$overdoseDeaths))
 ```
 
-The simple regression model has a positive coefficient for unemployment ($0.086897$). With a $t$-statistic of $9.56$ ($p$-value $\approx 0$), this coefficient is very significant. The model has a positive association between unemployment and overdose deaths. 
+The simple regression model has a positive coefficient for unemployment ($0.09179$). With a $t$-statistic of $10.11$ ($p$-value $\approx 0$), this coefficient is very significant. The model has a positive association between unemployment and overdose deaths. 
 
 ```{r}
 # observations with simple regression line
@@ -479,7 +474,7 @@ varImpPlot(rf1, main = "Random Forest Feature Importance", pch = 20,
            cex = 0.8)
 ```
 
-Unemployment is relatively not important in the random forest model. 
+Unemployment is relatively not important in the random forest model. It appears as though state and area (which is correlated with state) are the most important predictors. In order to handle the grouped nature of state, area, and so forth, we fit mixed models below.  
 
 ```{r mixed}
 library(lme4) # package
@@ -501,10 +496,14 @@ rmse.overdose <- data.frame(
            rf1.test, lmer1.test),
   row.names = c("lm1", "lm2", "lm3", "poly1", "poly2", "lasso", "rf1", "lmer1")
 )
+rmse.overdose
 ```
 
 \section{Conclusions and Decisions}
 
-Based on root-mean-square error, the model that performs the best in terms of minimizing predictive error on the holdout set would be the random forest model
+Based on root-mean-square error, the model that performs the best in terms of minimizing predictive error on the holdout set would be the random forest model.
+
+\section{Direction of Future Research}
+
 
 \section{References}
