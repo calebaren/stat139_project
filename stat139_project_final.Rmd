@@ -62,6 +62,9 @@ overdose$month <- ordered(overdose$month, levels = months.levels, labels = month
 # relevant columns
 overdose <- overdose[,1:4]
 
+# convert year to factor
+overdose$year <- factor(overdose$year)
+
 # adding dates
 overdose$dates <- as.Date(paste("01", overdose$month, overdose$year, sep =""), 
                           format = "%d%b%Y")
@@ -323,7 +326,7 @@ boxplot(log(overdose$overdoseDeaths), main = "Boxplot of Log-Overdose Deaths",
         xlab = "Log-Overdose Deaths")
 ```
 
-We see that the data is much closer to a Normal distribution if we apply a log transformation.
+We see that the data is much closer to a Normal distribution if we apply a log transformation. We shall predict the log-rate of overdose deaths in our linear models.
 
 ```{r}
 # response vs. unemployment
@@ -348,16 +351,16 @@ rmse <- function(v1, v2) {
 }
 
 # simple linear model
-summary(lm1 <- lm(overdoseDeaths ~ unemployment, data = train))
+summary(lm1 <- lm(log(overdoseDeaths) ~ unemployment, data = train))
 lm1.train <- rmse(predict(lm1, train), train$overdoseDeaths)
 lm1.test <- rmse(predict(lm1, test), test$overdoseDeaths)
 ```
 
-The simple regression model has a positive coefficient for unemployment ($13.164$). With a $t$-statistic of $15.345$ ($p$-value $\approx 0$), this coefficient is very significant. The model has a positive association between unemployment and overdose deaths. 
+The simple regression model has a positive coefficient for unemployment ($0.086897$). With a $t$-statistic of $9.56$ ($p$-value $\approx 0$), this coefficient is very significant. The model has a positive association between unemployment and overdose deaths. 
 
 ```{r}
 # observations with simple regression line
-plot(overdoseDeaths ~ unemployment, data = overdose,
+plot(log(overdoseDeaths) ~ unemployment, data = overdose,
      main = "Overdose Deaths vs. Unemployment",
      xlab = "Unemployment Percent", ylab = "Overdose Deaths",
      col = rgb(0, 0, 0, 0.3), pch = 16)
@@ -366,64 +369,86 @@ y <- predict(lm1, newdata = data.frame(unemployment = x))
 lines(y ~ x, col = "red", lwd = 3)
 ```
 
-In order to better evaluate the importance of unemployment, we apply an ESS F-test. First, we fit two models: the first model contains all main effects and their respective quadratic versions besides unemployment. The second model contains the same predictors, except that it includes unemployment and its quadratic effect. Here we note that we are ignoring any time effect as of now. Additionally, we again verify the assumptions of a linear model via a plot of residuals vs. fitten values.
+In order to better evaluate the importance of unemployment, we apply an ESS F-test. First we fit two linear models. The first model include all main effects except unemployment, while the second includes all main effects. Then, we fit two quadratic models. The first model contains all main effects and their respective quadratic variants except unemployment. The second model contains the same predictors, except that it includes unemployment and its quadratic effect. We again verify the assumptions of a linear model via a plot of residuals vs. fitten values.
+
+```{r linear}
+# linear model with all main effects excluding unemployment
+lm2 <- lm(log(overdoseDeaths) ~ state + month + year + 
+            permits + imports + exports + income + 
+            population + region + area, 
+          data = train)
+
+# linear model with all main effects including unemployment
+lm3 <- lm(log(overdoseDeaths) ~ state + month  + year + 
+            permits + imports + exports + income + 
+            population + region + area + unemployment, 
+          data = train)
+
+# ESS F-test
+anova(lm2, lm3)
+
+# record predictive results
+lm2.train <- rmse(predict(lm2, train), log(train$overdoseDeaths))
+lm2.test <- rmse(predict(lm2, test), log(test$overdoseDeaths))
+lm3.train <- rmse(predict(lm3, train), log(train$overdoseDeaths))
+lm3.test <- rmse(predict(lm3, test), log(test$overdoseDeaths))
+```
+
+With an F-statistic of $13.387$ (with $1887$, $1$ degrees of freedom) and a corresponding p-value $<0.001$, unemployment provides significant predictive ability. We now consider the same ESS F-test with quadratic models.
 
 ```{r polynomial}
-# kitchen sink model without unemployment
-polynomial1 <- lm(overdoseDeaths ~ poly(permits, 2, raw = T) + 
-                    poly(imports, 2, raw = T) + poly(income, 2, raw = T) + 
-                    poly(population, 2, raw = T) + poly(exports, 2, raw = T) +
-                    region + state, data = train)
+# quadratic model with all main effects excluding unemployment
+polynomial1 <- lm(log(overdoseDeaths) ~ state + month  + year + 
+                  poly(permits, 2, raw = T) + poly(imports, 2, raw = T) 
+                  + poly(exports, 2, raw = T) + poly(income, 2, raw = T) 
+                  + poly(population, 2, raw = T) + region + area,
+                  data = train)
 
-# kitchen sink model with unemployment
-polynomial2 <- lm(overdoseDeaths ~ poly(unemployment, 2, raw = T) + 
-                    poly(permits, 2, raw = T) + poly(imports, 2, raw = T) + 
-                    poly(income, 2, raw = T) + poly(population, 2, raw = T) + 
-                    poly(exports, 2 , raw = T) +
-                    region + state, data = train)
-
-poly1.train <- rmse(predict(polynomial1, train), train$overdoseDeaths)
-poly1.test <- rmse(predict(polynomial1, test), test$overdoseDeaths)
-poly2.train <- rmse(predict(polynomial2, train), train$overdoseDeaths)
-poly2.test <- rmse(predict(polynomial2, test), test$overdoseDeaths)
+# quadratic model with all main effects including unemployment
+polynomial2 <- lm(log(overdoseDeaths) ~ state + month  + year + 
+                  poly(permits, 2, raw = T) + poly(imports, 2, raw = T) 
+                  + poly(exports, 2, raw = T) + poly(income, 2, raw = T) 
+                  + poly(population, 2, raw = T) + region + area 
+                  + poly(unemployment, 2, raw = T), 
+                  data = train)
 
 # ESS F-test
 anova(polynomial1, polynomial2)
+
+# predictive results
+poly1.train <- rmse(predict(polynomial1, train), log(train$overdoseDeaths))
+poly1.test <- rmse(predict(polynomial1, test), log(test$overdoseDeaths))
+poly2.train <- rmse(predict(polynomial2, train), log(train$overdoseDeaths))
+poly2.test <- rmse(predict(polynomial2, test), log(test$overdoseDeaths))
 
 # check model assumptions
 plot(polynomial2, which = 3, pch = 19)
 ```
 
-With an F-statistic of $12.208$ (with $2434$, $2$ degrees of freedom) and a corresponding p-value $<<0.001$, unemployment provides significant predictive ability. In order to be thorough, we examine the importance of unemployment in two additional ways: lasso regression, and random forrest regression. Additionally, there seems to be no underlying structure to the residuals, the residuals appear to have reasonably constant variance, and are reasonably normally distributed: the assumptions of our models (linearity, homoscedasticity of residuals, and normality) appear to be reasonably satisfied. As mentions above, we are purposefully ignoring a time effect so samples are likely correlated and thus not completely independent. We shall investigate this effect further in the analysis.
+With an F-statistic of $17.359$ (with $1881$, $2$ degrees of freedom) and a corresponding p-value $<0.001$, unemployment provides significant predictive ability. Additionally, there seems to be no underlying structure to the residuals, the residuals appear to have reasonably constant variance, and are reasonably normally distributed: the assumptions of our models (linearity, homoscedasticity of residuals, and normality) appear to be satisfied.
 
-We begin with lasso regression. Due to l1 penalty of lasso regression, less important variables quickly converge to zero as the regularization parameter increases. Below, we fit a lasso model (with the same dedign matrix as that of the full quadratic kitchen sink model) with a series of possible regularization parameters. We then consider the order in which the variable coefficients shrink to zero.
+In order to be thorough, we examine the importance of unemployment in two additional ways: lasso regression, and random forrest regression. We begin with lasso regression. Due to l1 penalty of lasso regression, less important variables quickly converge to zero as the regularization parameter increases. Below, we fit a lasso model (with the same dedign matrix as that of the full quadratic kitchen sink model) with a series of possible regularization parameters. We then consider the order in which the variable coefficients shrink to zero.
 
 ```{r lasso} 
 library(glmnet) # package
 
 # design matrix and model
 X <- model.matrix(formula(polynomial2), data = train)
-y <- train$overdoseDeaths
+y <- log(train$overdoseDeaths)
 lasso.cv <- cv.glmnet(X, y, alpha = 1)
+
 # feature importance plot
+cols <- c(1,64:79)
 plot(lasso.cv$glmnet.fit, "lambda", main = "Lasso Feature Selection",
      xlab = "log(lambda)", ylab = "beta")
-# matplot(log(lasso.cv$lambda, 10), t(lasso.cv$beta), type = "l",
-#         main = "Lasso Feature Selection", xlab = "log(lambda)", ylab = "beta")
-legend("topleft", colnames(X)[1:14], col = seq_len(ncol(X)[1:14]), fill = seq_len(14))
-plot(lasso.cv$glmnet.fit, "lambda", main = "Lasso Feature Selection", 
-     xlab = "log(lambda)", ylab = "Beta")
+legend("topleft", colnames(X)[c(1,64:79)], col = seq_len(length(cols)), 
+       fill = seq_len(length(cols)))
 
+# predictive results
 lasso.train <- sqrt(min(lasso.cv$cvm))
 testX <- model.matrix(formula(polynomial2), data = test)
 testY <- predict(lasso.cv, newx = testX)
-lasso.test <- rmse(testY, test$overdoseDeaths)
-
-# matplot(log(lasso.cv$lambda, 10), t(lasso.cv$beta), type = "l",
-        # main = "Lasso Feature Selection", xlab = "log(lambda)", ylab = "beta")
-legend("topleft", colnames(X), col = seq_len(ncol(X)), fill = seq_len(ncol(X)), cex = 0.7)
-
-# >>>>>>> 263d03a2c0a15a5037aa1601e8bb58161e4e6aa1
+lasso.test <- rmse(testY, log(test$overdoseDeaths))
 ```
 
 Lasso feature selection agrees with the results of the ESS F-test. Unemployment (the quadratic effect in this case) is one of the last coefficients to shrink to zero along with population. We further test this conclusion with a random forest model. Below, we fit a random forest model with all main effects and then examine it's relative feature importance.
@@ -432,13 +457,13 @@ Lasso feature selection agrees with the results of the ESS F-test. Unemployment 
 library(randomForest) # package
 
 # random forest
-rf1 <- randomForest(overdoseDeaths ~ unemployment + permits + 
-                      imports + exports + income + population +
-                      region + state, 
+rf1 <- randomForest(log(overdoseDeaths) ~ state + month + year + 
+                    permits + imports + exports + income + 
+                    population + region + area + unemployment, 
                     data = train, mtry = 3, ntree = 500)
 
-rf1.train <- rmse(rf1$predicted, train$overdoseDeaths)
-rf1.test <- rmse(predict(rf1, test), test$overdoseDeaths)
+rf1.train <- rmse(rf1$predicted, log(train$overdoseDeaths))
+rf1.test <- rmse(predict(rf1, test), log(test$overdoseDeaths))
 
 # feature importance
 varImpPlot(rf1, main = "Random Forest Feature Importance", pch = 20, 
@@ -461,11 +486,11 @@ lmer1.test <- rmse(predict(lmer1, newdata = test), test$overdoseDeaths)
 
 ```{r rmse}
 rmse.overdose <- data.frame(
-  train = c(lm1.train, poly1.train, poly2.train, lasso.train, 
-            rf1.train, lmer1.train),
-  test = c(lm1.test, poly1.test, poly2.test, lasso.test, 
+  train = c(lm1.train, lm2.train, lm3.train, poly1.train, poly2.train, 
+            lasso.train, rf1.train, lmer1.train),
+  test = c(lm1.test, lm2.test, lm3.test, poly1.test, poly2.test, lasso.test, 
            rf1.test, lmer1.test),
-  row.names = c("lm1", "poly1", "poly2", "lasso", "rf1", "lmer1")
+  row.names = c("lm1", "lm2", "lm3", "poly1", "poly2", "lasso", "rf1", "lmer1")
 )
 ```
 
