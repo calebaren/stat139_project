@@ -4,3 +4,4 @@ Matrix
 foreach
 glmnet
 randomForest
+lme4

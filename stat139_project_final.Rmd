@@ -375,9 +375,8 @@ We begin with lasso regression. Due to l1 penalty of lasso regression, less impo
 library(glmnet) # package
 
 # design matrix and model
-X <- model.matrix(polynomial2)
+X <- model.matrix(formula(polynomial2), data = train)
 y <- train$overdoseDeaths
-lasso.cv <- glmnet(X, y, lambda = 10^seq(-4, 4, 0.01), alpha = 1)
 lasso.cv <- cv.glmnet(X, y, alpha = 1)
 # feature importance plot
 plot(lasso.cv$glmnet.fit, "lambda", main = "Lasso Feature Selection",
@@ -388,9 +387,14 @@ legend("topleft", colnames(X)[1:14], col = seq_len(ncol(X)[1:14]), fill = seq_le
 plot(lasso.cv$glmnet.fit, "lambda", main = "Lasso Feature Selection", 
      xlab = "log(lambda)", ylab = "Beta")
 
+lasso.train <- sqrt(min(lasso.cv$cvm))
+testX <- model.matrix(formula(polynomial2), data = test)
+testY <- predict(lasso.cv, newx = testX)
+lasso.test <- rmse(testY, test$overdoseDeaths)
+
 # matplot(log(lasso.cv$lambda, 10), t(lasso.cv$beta), type = "l",
         # main = "Lasso Feature Selection", xlab = "log(lambda)", ylab = "beta")
-legend("topleft", colnames(X), col = seq_len(ncol(X)), fill = seq_len(ncol(X)), cex = 0.3)
+legend("topleft", colnames(X), col = seq_len(ncol(X)), fill = seq_len(ncol(X)), cex = 0.7)
 
 # >>>>>>> 263d03a2c0a15a5037aa1601e8bb58161e4e6aa1
 ```
@@ -402,12 +406,16 @@ library(randomForest) # package
 
 # random forest
 rf1 <- randomForest(overdoseDeaths ~ unemployment + permits + 
-                      imports + income + population + region + state, 
-                    data = overdose, mtry = 3, ntree = 500)
+                      imports + exports + income + population +
+                      region + state, 
+                    data = train, mtry = 3, ntree = 500)
+
+rf1.train <- rmse(rf1$predicted, train$overdoseDeaths)
+rf1.test <- rmse(predict(rf1, test), test$overdoseDeaths)
 
 # feature importance
 varImpPlot(rf1, main = "Random Forest Feature Importance", pch = 20, 
-           cex = 1.5)
+           cex = 0.8)
 ```
 
 Unemployment is relatively not important in the random forest model. 
@@ -416,12 +424,26 @@ Unemployment is relatively not important in the random forest model.
 library(lme4) # package
 
 # mixed effects model
-lmer1 <- lmer(overdoseDeaths ~ year + month + (1 | year) + (1 | month) + (1 | state), data = overdoseDeaths)
+lmer1 <- lmer(overdoseDeaths ~ year + month + (1 | year) + (1 | month) + (1 | state), data = train)
+
+lmer1.train <- rmse(predict(lmer1, newdata = train), train$overdoseDeaths)
+lmer1.test <- rmse(predict(lmer1, newdata = test), test$overdoseDeaths)
 ```
 
 \section{Results}
 
+```{r rmse}
+rmse.overdose <- data.frame(
+  train = c(lm1.train, poly1.train, poly2.train, lasso.train, 
+            rf1.train, lmer1.train),
+  test = c(lm1.test, poly1.test, poly2.test, lasso.test, 
+           rf1.test, lmer1.test),
+  row.names = c("lm1", "poly1", "poly2", "lasso", "rf1", "lmer1")
+)
+```
 
 \section{Conclusions and Decisions}
+
+Based on root-mean-square error, the model that performs the best in terms of minimizing predictive error on the holdout set would be the random forest model
 
 \section{References}
