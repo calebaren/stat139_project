@@ -309,11 +309,23 @@ plot(overdoseDeaths ~ unemployment, data = overdose,
 \subsection{Baseline Model}
 
 ```{r}
+# train/test data for cross validation
+samples <- sample(nrow(overdose), size = 0.8 * nrow(overdose), replace = F)
+train <- overdose[samples,]
+test <- overdose[-samples,]
+
+# rmse function
+rmse <- function(v1, v2) {
+  return(sqrt(mean((v1 - v2)^2)))
+}
+
 # simple linear model
-summary(lm1 <- lm(overdoseDeaths ~ unemployment, data = overdose))
+summary(lm1 <- lm(overdoseDeaths ~ unemployment, data = train))
+lm1.train <- rmse(predict(lm1, train), train$overdoseDeaths)
+lm1.test <- rmse(predict(lm1, test), test$overdoseDeaths)
 ```
 
-The simple regression model has a positive coefficient for unemployment ($155.25$). With a $t$-statistic of $7.267$ ($p$-value $< 0.0001$), this coefficient is very significant. The model has a positive association between unemployment and overdose deaths. 
+The simple regression model has a positive coefficient for unemployment ($13.164$). With a $t$-statistic of $15.345$ ($p$-value $\approx 0$), this coefficient is very significant. The model has a positive association between unemployment and overdose deaths. 
 
 ```{r}
 # observations with simple regression line
@@ -332,14 +344,20 @@ In order to better evaluate the importance of unemployment, we apply an ESS F-te
 # kitchen sink model without unemployment
 polynomial1 <- lm(overdoseDeaths ~ poly(permits, 2, raw = T) + 
                     poly(imports, 2, raw = T) + poly(income, 2, raw = T) + 
-                    poly(population, 2, raw = T) + 
-                    region + state, data = overdose)
+                    poly(population, 2, raw = T) + poly(exports, 2, raw = T) +
+                    region + state, data = train)
 
 # kitchen sink model with unemployment
 polynomial2 <- lm(overdoseDeaths ~ poly(unemployment, 2, raw = T) + 
                     poly(permits, 2, raw = T) + poly(imports, 2, raw = T) + 
                     poly(income, 2, raw = T) + poly(population, 2, raw = T) + 
-                    region + state, data = overdose)
+                    poly(exports, 2 , raw = T) +
+                    region + state, data = train)
+
+poly1.train <- rmse(predict(polynomial1, train), train$overdoseDeaths)
+poly1.test <- rmse(predict(polynomial1, test), test$overdoseDeaths)
+poly2.train <- rmse(predict(polynomial2, train), train$overdoseDeaths)
+poly2.test <- rmse(predict(polynomial2, test), test$overdoseDeaths)
 
 # ESS F-test
 anova(polynomial1, polynomial2)
@@ -357,13 +375,24 @@ library(glmnet) # package
 
 # design matrix and model
 X <- model.matrix(polynomial2)
-y <- overdose$overdoseDeaths
+y <- train$overdoseDeaths
 lasso.cv <- glmnet(X, y, lambda = 10^seq(-4, 4, 0.01), alpha = 1)
+lasso.cv <- cv.glmnet(X, y, alpha = 1)
 
 # feature importance plot
+<<<<<<< HEAD
 matplot(log(lasso.cv$lambda, 10), t(lasso.cv$beta), type = "l",
         main = "Lasso Feature Selection", xlab = "log(lambda)", ylab = "beta")
 legend("topright", colnames(X)[1:14], col = seq_len(ncol(X)[1:14]), fill = seq_len(14))
+=======
+plot(lasso.cv$glmnet.fit, "lambda", main = "Lasso Feature Selection", 
+     xlab = "log(lambda)", ylab = "Beta")
+
+# matplot(log(lasso.cv$lambda, 10), t(lasso.cv$beta), type = "l",
+        # main = "Lasso Feature Selection", xlab = "log(lambda)", ylab = "beta")
+legend("topleft", colnames(X), col = seq_len(ncol(X)), fill = seq_len(ncol(X)), cex = 0.3)
+
+>>>>>>> 263d03a2c0a15a5037aa1601e8bb58161e4e6aa1
 ```
 
 Lasso feature selection agrees with the results of the ESS F-test. Unemployment (the quadratic effect in this case) is one of the last coefficients to shrink to zero along with population. We further test this conclusion with a random forest model. Below, we fit a random forest model with all main effects and then examine it's relative feature importance.
