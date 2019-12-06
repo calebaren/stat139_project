@@ -235,9 +235,6 @@ colnames(population)[2] <- "year"
 overdose <- merge(overdose, population, by = c("state", "year"))
 ```
 
-R Data
-region: data from R. We have to include the region for DC specifically
-
 R inherently has several statistics about states. Most of these are static estimates from the early 70's (population estimates, income per capita, illiteracy,...). We can, however, use the datasets which give information about the region a state is in. This is a categorical variable with four categories: northeast, northcentral, south, and west. Though the nomenclature is dated, these categories reasonably divide states by potentially important factors. For example, we expect the Rust Belt (which R includes in the region northcentral) to have a positive association with overdose deaths (as noted above). Here we note that we have to encode Washington DC ourselves as the data in R does not contain the District of Columbia (in accordance with R's encoding, Washington DC is in the south). 
 
 R also provides us with the area of each state in square miles. Again, we must encode Washington DC manually (source: https://www.britannica.com/place/Washington-DC). 
