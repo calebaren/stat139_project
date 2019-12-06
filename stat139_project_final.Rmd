@@ -277,8 +277,11 @@ any(finite | nans | nas | nulls)
 
 We now consider the possibility of multicollinearity. As shown below, some of the quantitative features of our dataset are highly correlated (population and imports, imports and exports,...). In order to handle this multicolinearity, we will consider ensemble models such as random forests.
 
-```{r collinearity}
-round(cor(overdose[,c(6:11, 13)]), 3)
+```{r corplot}
+require(corrplot)
+corrplot.mixed(cor(overdose[,c(6:11, 13)]),
+               lower.col = "black", upper = "square", order = "hclust",
+               number.cex = 2, tl.col = "black", tl.cex = 0.7)
 ```
 
 
@@ -355,17 +358,6 @@ boxplot(log(overdose$overdoseDeaths), main = "Boxplot of Log-Overdose Deaths",
         xlab = "Log-Overdose Deaths")
 ```
 
-We see that the data is much closer to a Normal distribution if we apply a log transformation. We shall predict the log-rate of overdose deaths in our models.
-
-```{r}
-# response vs. unemployment
-par(mfrow = c(1, 1))
-plot(log(overdoseDeaths) ~ unemployment, data = overdose,
-     main = "Log Overdose Deaths vs. Unemployment",
-     xlab = "Unemployment Percent", ylab = "Log Overdose Deaths",
-     pch = 16, col = rgb(0, 0, 0, 0.3))
-```
-
 \subsection{Baseline Model}
 
 ```{r}
@@ -389,7 +381,7 @@ lm1.train <- rmse(predict(lm1, train), log(train$overdoseDeaths))
 lm1.test <- rmse(predict(lm1, test), log(test$overdoseDeaths))
 ```
 
-The simple regression model has a positive coefficient for unemployment ($0.09179$). With a $t$-statistic of $10.11$ ($p$-value $\approx 0$), this coefficient is very significant. The model has a positive association between unemployment and overdose deaths. 
+We see that the data is much closer to a Normal distribution if we apply a log transformation. We shall predict the log-rate of overdose deaths in the remainder of our models as a result. The simple regression model has a positive coefficient for unemployment ($0.09179$). With a $t$-statistic of $10.11$ ($p$-value $\approx 0$), this coefficient is very significant. The model has a positive association between unemployment and overdose deaths. 
 
 ```{r}
 # observations with simple regression line
