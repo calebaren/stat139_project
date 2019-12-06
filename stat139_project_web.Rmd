@@ -1,4 +1,9 @@
 ---
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file,
+ encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
 title: "Drugs and Jobs: The Effect of Unemployment on Drug Overdose Deaths in America"
 author: "Evan Arnold and Caleb Ren"
 date: "12/06/2019"
