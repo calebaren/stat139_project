@@ -53,8 +53,11 @@ overdose$state <- droplevels(overdose$state)
 # reformat month to ordered factor
 months.levels <- c("January", "February", "March", "April", "May", "June", 
                    "July", "August", "September", "October", "November", "December")
-months.labels <- unname(sapply(tolower(months.levels), function(x) substr(x, 1, 3)))
+months.labels <- substr(tolower(months.levels), 1, 3)
 overdose$month <- ordered(overdose$month, levels = months.levels, labels = months.labels)
+
+# relevant columns
+overdose <- overdose[,1:4]
 ```
 
 ```{r exports}
@@ -124,6 +127,123 @@ overdose <- merge(overdose, unemployment, by = c("state", "year", "month"))
 # order
 overdose <- overdose[order(overdose$year, overdose$state, overdose$month),]
 ```
+
+St. Louis Datasets
+permits: housing units authorized by building permits (raw count). This is a proxy for housing development.
+imports: imports in millions of dollars. This is a proxy for in-state manufactoring.
+income: annual income per capita
+
+```{r stlouis}
+# convert Federal Reserve Bank of St. Louis data to long-form
+stlouis <- function(wide, var.name, state_start, state_end) {
+  # states to include
+  states.include <- levels(overdose$state)
+  
+  # state names
+  cols.states <- substr(colnames(wide)[-1], state_start, state_end)
+  colnames(wide) <- c("date", cols.states)
+  
+  # filter for states
+  wide <- wide[,c("date", states.include)]
+  
+  # expand date column
+  wide$month <- ordered(months(as.POSIXct(wide$date)), 
+                        levels = months.levels, 
+                        labels = months.labels)
+  wide$year <- as.numeric(substr(wide$date, 1, 4))
+  wide <- wide[,-1] # remove original date variable
+  wide <- wide[,c("year", "month", states.include)]
+  
+  # filter years
+  wide <- wide[wide$year >= 2015 & wide$year <= 2019,]
+  
+  # filter months in 2019 (april is the last month in the overdose dataset in 2019)
+  wide <- wide[!(wide$month > "apr" & wide$year == 2019),]
+  
+  # convert to longform data
+  long <- reshape(wide, direction = "long", 
+                  varying = states.include, 
+                  v.names = var.name, 
+                  idvar = c("year", "month"), 
+                  times = states.include)
+  
+  # column name and order
+  colnames(long)[3] <- "state"
+  long <- long[,c("state", "year", "month", var.name)]
+  
+  return(long)
+}
+
+# read in data
+imports <- read.table("data/imports/Imports.txt", header = T)
+permits <- read.table("data/permits/Permits.txt", header = T)
+income <- read.table("data/income/income.txt", header = T)
+
+# convert to long-form
+permits <- stlouis(permits, "permits", 1, 2)
+imports <- stlouis(imports, "imports", 7, 8)
+income <- stlouis(income, "income", 1, 2)[-3]
+
+# combine with overdose and unemployment data
+overdose <- merge(overdose, permits, by = c("state", "year", "month"))
+overdose <- merge(overdose, imports, by = c("state", "year", "month"))
+overdose <- merge(overdose, income, by = c("state", "year"))
+```
+
+Census Bureau Dataset
+population: raw population
+
+NOTE: For each state, we use the population estimate for the previous year for the entire year. This is due to a lack of available data as well as slow population growth across states. 
+
+```{r population}
+# data
+population <- read.csv("data/population.csv")
+
+# filter for 50 states and DC
+population <- population[6:(nrow(population) - 1),]
+
+# state names
+abbrev <- function(state) {
+  if (state == "District of Columbia") {
+    return("DC")
+  }
+  return(state.abb[which(state.name == state)])
+}
+population$state <- unlist(sapply(population$NAME, abbrev))
+
+# relevant variables
+population <- population[,c("state", paste(rep("POPESTIMATE", 5), 
+                                           2014:2018, sep = ""))]
+
+# columns names
+pop.cols <- as.character(2015:2019)
+colnames(population) <- c("state", pop.cols)
+
+# convert to long format
+population <- reshape(population, direction = "long", 
+                      varying = pop.cols, 
+                      v.names = "population", 
+                      times = pop.cols)
+population <- population[,-4]
+colnames(population)[2] <- "year"
+
+# merge with overdose dataset
+overdose <- merge(overdose, population, by = c("state", "year"))
+```
+
+R Data
+region: data from R. We have to include the region for DC specifically
+
+```{r R_data}
+# region
+overdose$region <- rep(NA, nrow(overdose))
+for (i in 1:length(state.region)) {
+  overdose$region[overdose$state == state.abb[i]] <- as.character(state.region[i])
+}
+overdose$region[overdose$state == "DC"] <- "South"
+```
+
+
 
 \subsection{EDA}
 
