@@ -240,7 +240,7 @@ overdose <- merge(overdose, population, by = c("state", "year"))
 
 R inherently has several statistics about states. Most of these are static estimates from the early 70's (population estimates, income per capita, illiteracy,...). We can, however, use the datasets which give information about the region a state is in. This is a categorical variable with four categories: northeast, northcentral, south, and west. Though the nomenclature is dated, these categories reasonably divide states by potentially important factors. For example, we expect the Rust Belt (which R includes in the region northcentral) to have a positive association with overdose deaths (as noted above). Here we note that we have to encode Washington DC ourselves as the data in R does not contain the District of Columbia (in accordance with R's encoding, Washington DC is in the south). 
 
-R also provides us with the area of each state in square miles. Again, we must encode Washington DC manually (source: https://www.britannica.com/place/Washington-DC). 
+R also provides us with the area of each state in square miles. Again, we must encode Washington DC manually [@Brittanica]. 
 
 ```{r R_data}
 # region and area
@@ -330,14 +330,18 @@ We see that the data is much closer to a Normal distribution if we apply a log t
 
 ```{r}
 # response vs. unemployment
-par(mfrow = c(1, 1))
+par(mfrow = c(1, 2))
+plot(overdoseDeaths ~ unemployment, data = overdose,
+     main = "Overdose Deaths vs. Unemployment",
+     xlab = "Unemployment Percent", ylab = "Overdose Deaths",
+     pch = 16, col = rgb(0, 0, 0, 0.3))
 plot(log(overdoseDeaths) ~ unemployment, data = overdose,
      main = "Log Overdose Deaths vs. Unemployment",
      xlab = "Unemployment Percent", ylab = "Log Overdose Deaths",
      pch = 16, col = rgb(0, 0, 0, 0.3))
 ```
 
-\subsection{Baseline Model}
+\section{Results}
 
 ```{r}
 # train/test data for cross validation
@@ -350,8 +354,8 @@ train <- overdose[samples,]
 test <- overdose[-samples,]
 
 # rmse function
-rmse <- function(m, o){
-  return(sqrt(mean((m - o)^2)))
+rmse <- function(v1, v2) {
+  return(sqrt(mean((v1 - v2)^2)))
 }
 
 # simple linear model
@@ -452,6 +456,9 @@ legend("topleft", colnames(X)[c(1,64:79)], col = seq_len(length(cols)),
 lasso.train <- sqrt(min(lasso.cv$cvm))
 testX <- model.matrix(formula(polynomial2), data = test)
 testY <- predict(lasso.cv, newx = testX)
+
+# matplot(log(lasso.cv$lambda, 10), t(lasso.cv$beta), type = "l",
+        # main = "Lasso Feature Selection", xlab = "log(lambda)", ylab = "beta")
 lasso.test <- rmse(testY, log(test$overdoseDeaths))
 ```
 
@@ -493,8 +500,6 @@ lmer1.train <- rmse(predict(lmer1, newdata = train), log(train$overdoseDeaths))
 lmer1.test <- rmse(predict(lmer1, newdata = test), log(test$overdoseDeaths))
 ```
 
-\section{Results}
-
 ```{r rmse}
 rmse.overdose <- data.frame(
   train = c(lm1.train, lm2.train, lm3.train, poly1.train, poly2.train, 
@@ -512,5 +517,7 @@ Based on root-mean-square error, the model that performs the best in terms of mi
 
 \section{Direction of Future Research}
 
+
+```
 
 \section{References}
