@@ -426,7 +426,7 @@ poly2.train <- rmse(predict(polynomial2, train), log(train$overdoseDeaths))
 poly2.test <- rmse(predict(polynomial2, test), log(test$overdoseDeaths))
 
 # check model assumptions
-plot(polynomial2, which = 3, pch = 19)
+plot(polynomial2, which = 3, pch = 19, col = rgb(0, 0, 0, 0.3))
 ```
 
 With an F-statistic of $17.359$ (with $1881$, $2$ degrees of freedom) and a corresponding p-value $<0.001$, unemployment provides significant predictive ability. Additionally, there seems to be no underlying structure to the residuals, the residuals appear to have reasonably constant variance, and are reasonably normally distributed: the assumptions of our models (linearity, homoscedasticity of residuals, and normality) appear to be satisfied.
@@ -485,7 +485,12 @@ library(lme4) # package
 lmer1 <- lmer(log(overdoseDeaths) ~ month + 
                 permits + imports + exports + income + 
                 population + region + area + unemployment + 
+<<<<<<< HEAD
                 (1 + unemployment | state/year), data = train)
+=======
+                (1 + unemployment | state/year), data = train,
+                control = lmerControl(optCtrl = list(maxfun = 20000)))
+>>>>>>> f55673de1984cb743d6bdf6bff29bd1b8cdb09a2
 
 # record results
 lmer1.train <- rmse(predict(lmer1, newdata = train), log(train$overdoseDeaths))
@@ -508,6 +513,7 @@ rmse.overdose <- data.frame(
   row.names = c("lm1", "lm2", "lm3", "poly1", "poly2", "lasso", "rf1", "lmer1")
 )
 rmse.overdose
+barplot(t(rmse.overdose), beside = T, legend.text = T)
 ```
 
 \section{Conclusions and Decisions}
