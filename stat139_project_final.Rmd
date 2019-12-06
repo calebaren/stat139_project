@@ -10,6 +10,10 @@ output: pdf_document
 knitr::opts_chunk$set(echo = F, cache = T, fig.height = 4, fig.align = 'center',
                       message = F, warning = F)
 set.seed(139)
+require(scales)
+require(glmnet)
+require(randomForest)
+require(lme4)
 ```
 
 \section{Introduction and Motivation}
@@ -68,16 +72,6 @@ overdose$year <- factor(overdose$year)
 # adding dates
 overdose$dates <- as.Date(paste("01", overdose$month, overdose$year, sep =""), 
                           format = "%d%b%Y")
-```
-
-```{r censusapi}
-require("censusapi")
-Sys.setenv(CENSUS_KEY = '3473513fa1cde2a0539bd2449749c5a3a4fc45ce')
-readRenviron("~/.Renviron")
-key <- Sys.getenv("CENSUS_KEY")
-
-# list census apis
-apis <- listCensusApis()
 ```
 
 Unemployment data was sourced from the Bureau of Labor Statistics. Unemployment data is published in monthly increments from the Bureau of Labor Statistics by state. Data is published beginning in 1976 and is published on the first of each month describing the previous month's unemployment rate.
@@ -287,23 +281,24 @@ cor(overdose[,c(6:11, 13)])
 
 
 ```{r toy}
-colors_use <- sample(rainbow(51))
 states <- levels(overdose$state)
-
+regions <- levels(overdose$region)
+col_state <- sample(rainbow(51))
+col_reg <- c("red", "green", "blue", "orange")
 plot_state <- function(v) {
   mydf <- subset(overdose, state == "AK")
   plot(mydf[,v][order(mydf$dates)] ~ mydf$dates[order(mydf$dates)],
        type = "l",
        ylim = range(overdose[,v]), 
-       col = colors_use[1], xlab = "", ylab = v)
+       col = alpha(col_state[1], 0.4), xlab = "", ylab = v)
   for (i in 2:(length(states))) {
     mydf <- subset(overdose, state == states[i])
     lines(mydf[,v][order(mydf$dates)] ~ mydf$dates[order(mydf$dates)],
-          col = colors_use[i])
+          col = col_state[i])
   }
 }
 
-regions <- levels(overdose$region)
+
 plot_region <- function(v) {
   mydf <- subset(overdose, region == regions[1])
   temp <- unlist(by(mydf, mydf$dates, 
@@ -312,14 +307,14 @@ plot_region <- function(v) {
   plot(temp ~ as.Date(names(temp)),
        type = "l",
        ylim = range(overdose[,v]), 
-       col = colors_use[1], xlab = "", ylab = v)
+       col = col_reg[1], xlab = "", ylab = v)
   for (i in 2:(length(regions))) {
     mydf <- subset(overdose, region == regions[i])
     temp <- unlist(by(mydf, mydf$dates, 
              FUN = function(x) {weighted.mean(x[,v], x[,"population"])}, 
              simplify =F))
     lines(temp ~ as.Date(names(temp)),
-          col = colors_use[i])
+          col = col_reg[i])
   }
 }
 
@@ -328,6 +323,9 @@ for (v in c("overdoseDeaths", "unemployment", "permits", "imports",
             "exports", "income", "population")) {
   plot_state(v)
 }
+plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+legend(0, 1, legend = states, cex=0.5, bty='n',
+    fill = col_state, ncol = 4)
 
 par(mfrow = c(2, 4), mar = c(2, 4, 1, 1))
 for (v in c("overdoseDeaths", "unemployment", "permits", "imports", 
@@ -335,14 +333,14 @@ for (v in c("overdoseDeaths", "unemployment", "permits", "imports",
   plot_region(v)
 }
 plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
-legend("bottomleft", legend =regions, cex=2, bty='n',
-    fill = colors_use[1:4])
+legend(0, 1, legend =regions, cex=1, bty='n',
+    fill = col_reg)
 
 ```
 
 ```{r}
 # histogram and boxplot of response
-par(mfrow = c(2, 2), mar = c(2, 2, 1, 1))
+par(mfrow = c(2, 2), mar = c(3, 2, 2, 2))
 hist(overdose$overdoseDeaths, main = "Histogram of Overdose Deaths", 
      xlab = "Overdose Deaths", col = "grey")
 boxplot(overdose$overdoseDeaths, main = "Boxplot of Overdose Deaths", 
@@ -466,9 +464,7 @@ With an F-statistic of $17.359$ (with $1881$, $2$ degrees of freedom) and a corr
 
 In order to be thorough, we examine the importance of unemployment in two additional ways: lasso regression, and random forrest regression. We begin with lasso regression. Due to l1 penalty of lasso regression, less important variables quickly converge to zero as the regularization parameter increases. Below, we fit a lasso model (with the same dedign matrix as that of the full quadratic kitchen sink model) with a series of possible regularization parameters. We then consider the order in which the variable coefficients shrink to zero.
 
-```{r lasso} 
-library(glmnet) # package
-
+```{r lasso}
 # design matrix and model
 X <- model.matrix(formula(polynomial2), data = train)
 y <- log(train$overdoseDeaths)
@@ -494,8 +490,6 @@ lasso.test <- rmse(testY, log(test$overdoseDeaths))
 Lasso feature selection agrees with the results of the ESS F-test. Unemployment (the quadratic effect in this case) is one of the last coefficients to shrink to zero along with population. We further test this conclusion with a random forest model. Below, we fit a random forest model with all main effects and then examine it's relative feature importance.
 
 ```{r rf}
-library(randomForest) # package
-
 # random forest
 rf1 <- randomForest(log(overdoseDeaths) ~ state + month + year + 
                     permits + imports + exports + income + 
@@ -515,8 +509,6 @@ Unemployment is relatively not important in the random forest model. It appears 
 Below, we fit a three-layered mixed-effects model. The first two layers are state and year respectively. Theoretically, we would prefer to fit a four-layered model which includes month below year. This is impossible with our dataset ($n = 2448$). With 51 states, 5 years, and 12 months, we would need a minimum of $51 \times 5 \times 12 = 3060$ samples in order to fit such am model. We include a random intercept for states and years. The only random effect we include in the model is unemployment. These are purposeful design choices considering the limited size of our dataset. More complex models would not be reasonably fit.
 
 ```{r mixed}
-library(lme4) # package
-
 # mixed effects model
 lmer1 <- lmer(log(overdoseDeaths) ~ month + 
                 permits + imports + exports + income + 
