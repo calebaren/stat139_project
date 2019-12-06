@@ -2,6 +2,7 @@
 title: "Drugs and Jobs: The effect of unemployment on drug overdose deaths in America"
 author: "Evan Arnold and Caleb Ren"
 date: "12/06/2019"
+bibliography: bibliography.bib
 output: pdf_document
 ---
 
@@ -13,7 +14,7 @@ set.seed(139)
 
 \section{Introduction and Motivation}
 
-Overdose deaths in the US have increased dramatically since 1999
+Overdose deaths in the US have increased dramatically since 1999. Opioid use deaths in particular have reached epidemic levels, with a 200\% increase in overdose deaths between 2000 and 2014 [@Ghertner2018].
 
 \section{Exploratory Data Anslysis Methods}
 
@@ -365,7 +366,7 @@ poly2.test <- rmse(predict(polynomial2, test), test$overdoseDeaths)
 anova(polynomial1, polynomial2)
 
 # check model assumptions
-plot(polynomial2, which = 3)
+plot(polynomial2, which = 3, pch = 19)
 ```
 
 With an F-statistic of $12.208$ (with $2434$, $2$ degrees of freedom) and a corresponding p-value $<<0.001$, unemployment provides significant predictive ability. In order to be thorough, we examine the importance of unemployment in two additional ways: lasso regression, and random forrest regression. Additionally, there seems to be no underlying structure to the residuals, the residuals appear to have reasonably constant variance, and are reasonably normally distributed: the assumptions of our models (linearity, homoscedasticity of residuals, and normality) appear to be reasonably satisfied. As mentions above, we are purposefully ignoring a time effect so samples are likely correlated and thus not completely independent. We shall investigate this effect further in the analysis.
@@ -412,3 +413,5 @@ Unemployment is relatively not important in the random forest model.
 
 
 \section{Conclusions and Decisions}
+
+\section{References}
