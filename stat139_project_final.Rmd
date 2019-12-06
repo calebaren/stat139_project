@@ -18,21 +18,25 @@ require(lme4)
 
 \section{Introduction and Motivation}
 
-Overdose deaths in the US have increased dramatically since 1999. Opioid use deaths in particular have reached epidemic levels, with a 200\% increase in overdose deaths between 2000 and 2014 [@Ghertner2018]. The Centers for Disease Control and Prevention estimates that over 60,000 drug overdose deaths occurred in 2016, three times the rate of drug deaths as 1999 [@Hedegaard2018]. Reports in the literature from the CDC and other health journals have established a clear individual-level relationship of risk of drug overdose with rates of Medicaid and private insurance coverage [@Hedegaard2018], codependence on other drugs [@Seth2018], and is notably prevalent among working class non-Hispanic Whites in America [@Nolan2016].
+Overdose deaths in the US have increased dramatically since 1999. Opioid use deaths in particular have reached epidemic levels, with a 200\% increase in overdose deaths between 2000 and 2014 [@Ghertner2018]. The Centers for Disease Control and Prevention estimates that over 60,000 drug overdose deaths occurred in 2016, three times the rate of drug deaths as 1999 [@Hedegaard2018]. Reports in the literature from the CDC and other health journals have established a clear individual-level relationship of risk of drug overdose with rates of Medicaid and private insurance coverage [@Hedegaard2018], codependence on other drugs [@Seth2018], and is notably prevalent among working class non-Hispanic Whites in America [@Nolan2016]. However, there is not much in the literature attesting to state-level effects as they relate to overdose deaths in general (not only limited to opioid-caused deaths), especially with regard to macroeconomic indicators like unemployment level, import/export levels, and other proxies for economic activity at a state-level.
 
-Our analysis has two goals. First, we will determine the significane of unemployment when predicting overdose death rates, and validate this significance in the presence of other predictors. Second, we will determine which model from a set of possible, well-tuned models has the most predictive ability.
+As such, our analysis has two goals. First, we will determine the significance of unemployment when predicting overdose death rates, and validate this significance in the presence of other predictors like import/export activity, state population, and other economic indicators. Second, we will cross-validate several well-tuned models to determine which one has the most predictive ability. Our ultimate purpose is to see how economic indicators across time may affect the opioid epidemic.
 
-\section{Exploratory Data Anslysis Methods}
+\section{Exploratory Data Analysis Methods}
 
 \subsection{Data Summary}
 
-As a next step in our project, we collected data from the CDC in the form of the Vital Statistics Rapid Release dataset (VSRR). The VSRR data contains provisional counts of drug overdose deaths in the US as reported by agencies from all 50 states and the District of Columbia. The data is collected on a monthly basis.
+Data was collected from a total of 3 sources: the Centers for Disease Control and Prevention (CDC), the Federal Bureau of Labor Statistics (BLS), and the Federal Reserve Bank of St. Louis' Federal Reserve Economic Data (FRED).
 
-The data of import to this project is the number of deaths in each state as a result of drug overdose. Drug overdoses are counted by state agencies in acordance to World Health Organization standards, which lay out the basic guides for reporting agencies to code and classify causes of death. Drug categories that are represented in this dataset include the major drivers of the opioid epidemic like heroin (coded by T40.1), natural opioid analgesics (morphine and codeine), synthetic opioids (oxycodone, hydrocodone, oxymorphone; T40.2), methadone (T40.3), other synthetics (fentanyl, tramadol; T40.4) and other drugs like cocaine, methamphetamine, etc.
+\subsubsection{CDC}
 
-There were over 26052 data points from the VSRR dataset. Of those data points, many are individual observation of different coded deaths from different drugs; after reshaping and data cleaning, there are now 2652 individual observations. The data ranges from Januart 1, 2015 to April 1, 2019, with each state reporting 52 observations (once per month). Overdose deaths range from 55 deaths in the month of May 2015 in South Dakota to a high of 5697 in Pennsylvania in September of 2017.
+We collected health data from the CDC in the form of the Vital Statistics Rapid Release Dataset [@VSRR]. The VSRR data contains provisional counts of drug overdose deaths in the US as reported by agencies from all 50 states and the District of Columbia. The data is collected on a monthly basis.
 
-```{r reading}
+The data of import to this project is the number of deaths in each state as a result of non-specific drug overdose. Drug overdoses are counted by state agencies in accordance to World Health Organization standards, which lay out the basic guides for reporting agencies to code and classify causes of death. Drug categories that are represented in this dataset include the major drivers of the opioid epidemic like heroin (coded by T40.1), natural opioid analgesics (morphine and codeine), synthetic opioids (oxycodone, hydrocodone, oxymorphone; T40.2), methadone (T40.3), other synthetics (fentanyl, tramadol; T40.4) and other drugs like cocaine, methamphetamine, etc. [@VSRR]
+
+There were over 26052 data points from the VSRR dataset. Of those data points, many are individual observations of individually-coded deaths from different drugs. After reshaping and data cleaning, there are now 2652 individual observations. The data ranges across 4 years (2015 - 2019) from a start date of January 1, 2015 to December 1, 2018, with each state reporting 48 observations (once per month). Overdose deaths range from a low 55 deaths in the month of May 2015 in South Dakota to a high of 5697 in Pennsylvania in September of 2017.
+
+```{r overdose}
 # overdose dataset 
 overdose <- read.csv("data/overdose.csv")
 
@@ -74,17 +78,7 @@ overdose$year <- factor(overdose$year)
 # adding dates
 overdose$dates <- as.Date(paste("01", overdose$month, overdose$year, sep =""), 
                           format = "%d%b%Y")
-```
 
-Unemployment data was sourced from the Bureau of Labor Statistics. Unemployment data is published in monthly increments from the Bureau of Labor Statistics by state. Data is published beginning in 1976 and is published on the first of each month describing the previous month's unemployment rate.
-
-There is a very specific definition of who in the labor force is considered *unemployed*. According to the BLS, those who are currently unemployed are those who are "jobless, looking for a job, and avaiable for work." People who are incarcerated, in a nursing home, or in a mental health care facility are not considered unemployed as they are not fit for work.
-
-Using this definition, data was scraped from the BLS website and aggregated by each state and the District of Columbia. The unemployment rate in percent is given by the `unemployment` column. The lowest unemployment rate in a given state and month is Vermont in 2019 with a 2.1% unemployment rate. The highest rate is DC in 2015 with a 7.4% unemployment rate. The data itself is roughly Normally distributed with a mean of 4.2% and a median of 4.31%.
-
-We hypothesize that unemployment will have a significant positive association with overdose death rate. We believe unemployment worses community conditions and potentially leads to increase abuse of opioids.
-
-```{r overdose}
 # iterate through state data files 
 unemployment <- data.frame()
 for (file in list.files("data/state", full.names = T)) {
@@ -115,7 +109,19 @@ overdose <- merge(overdose, unemployment, by = c("state", "year", "month"))
 overdose <- overdose[order(overdose$year, overdose$state, overdose$month),]
 ```
 
-Here we consider a series of variables from the Federal Reserve Bank of St. Louis (Federal Reserve Economic Data or FRED for short). All such datasets are originally from Bureau of Labor Statistics or the U.S. Census Bureau, however, FRED has their data in a more convenient format. 
+\subsubsection{BLS}
+
+Unemployment data was sourced from the Bureau of Labor Statistics. Unemployment data is published in monthly increments from the Bureau of Labor Statistics by state [@BLS]. Data is published beginning in 1976 and is published on the first of each month describing the previous month's unemployment rate.
+
+There is a very specific definition of who in the labor force is considered *unemployed*. According to the BLS, those who are currently unemployed are those who are "jobless, looking for a job, and available for work." People who are incarcerated, in a nursing home, or in a mental health care facility are not considered unemployed as they are not fit for work.
+
+Using this definition, data was scraped from the BLS website and aggregated by each state (including the District of Columbia). The lowest unemployment rate in a given state and month is Vermont in 2019 with a 2.1\% unemployment rate. The highest rate is DC in 2015 with a 7.4\% unemployment rate. The data itself is roughly Normally distributed with a mean of 4.2\% and a median of 4.31\%.
+
+We hypothesize that unemployment will have a significant positive association with overdose death rate. A working mechanism may be that unemployment exacerbates existing community economic strife and potentially leads to increase abuse of opioids.
+
+\subsubsection{FRED}
+
+Here we consider a series of variables from the Federal Reserve Bank of St. Louis' Federal Reserve Economic Data database. All such datasets are originally from Bureau of Labor Statistics or the U.S. Census Bureau; however, FRED publishes their data in a more accessible form.
 
 First, we consider the number of new private housing units authorized by building permit. This timeseries is reported monthly. In our analysis, this variable serves as a proxy to housing development as well as the health of the housing market; more permits implies a healthy housing market and ample housing options. We thus expect a negative association between overdose deaths and new housing permits. 
 
@@ -294,11 +300,11 @@ plot_state <- function(v) {
   plot(mydf[,v][order(mydf$dates)] ~ mydf$dates[order(mydf$dates)],
        type = "l",
        ylim = range(overdose[,v]), 
-       col = alpha(col_state[1], 0.7), xlab = "", ylab = "", main = v)
+       col = alpha(col_state[1], 0.4), xlab = "", ylab = v)
   for (i in 2:(length(states))) {
     mydf <- subset(overdose, state == states[i])
     lines(mydf[,v][order(mydf$dates)] ~ mydf$dates[order(mydf$dates)],
-          col = alpha(col_state[i], 0.7))
+          col = col_state[i])
   }
 }
 
@@ -311,7 +317,7 @@ plot_region <- function(v) {
   plot(temp ~ as.Date(names(temp)),
        type = "l",
        ylim = range(overdose[,v]), 
-       col = col_reg[1], xlab = "", ylab = "", main = v)
+       col = col_reg[1], xlab = "", ylab = v)
   for (i in 2:(length(regions))) {
     mydf <- subset(overdose, region == regions[i])
     temp <- unlist(by(mydf, mydf$dates, 
@@ -322,7 +328,7 @@ plot_region <- function(v) {
   }
 }
 
-par(mfrow = c(2, 4), mar = c(2, 4, 2, 2))
+par(mfrow = c(2, 4), mar = c(2, 4, 1, 1))
 for (v in c("overdoseDeaths", "unemployment", "permits", "imports", 
             "exports", "income", "population")) {
   plot_state(v)
@@ -331,7 +337,7 @@ plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
 legend(0, 1, legend = states, cex=0.5, bty='n',
     fill = col_state, ncol = 4)
 
-par(mfrow = c(2, 4), mar = c(2, 4, 2, 2))
+par(mfrow = c(2, 4), mar = c(2, 4, 1, 1))
 for (v in c("overdoseDeaths", "unemployment", "permits", "imports", 
             "exports", "income", "population")) {
   plot_region(v)
