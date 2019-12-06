@@ -25,7 +25,7 @@ The data of import to this project is the number of deaths in each state as a re
 
 There were over 26052 data points from the VSRR dataset. Of those data points, many are individual observation of different coded deaths from different drugs; after reshaping and data cleaning, there are now 2652 individual observations. The data ranges from 2015 to 2019, with each state reporting 52 observations (once per month). Overdose deaths range from 55 deaths in the month of May 2015 in South Dakota to a high of 5697 in Pennsylvania in September of 2017.
 
-```{r}
+```{r reading}
 # overdose dataset 
 overdose <- read.csv("data/overdose.csv")
 
@@ -82,7 +82,7 @@ There is a very specific definition of who in the labor force is considered *une
 
 Using this definition, data was scraped from the BLS website and aggregated by each state and the District of Columbia. The unemployment rate in percent is given by the `unemployment` column. The lowest unemployment rate in a given state and month is Vermont in 2019 with a 2.1% unemployment rate. The highest rate is DC in 2015 with a 7.4% unemployment rate. The data itself is roughly Normally distributed with a mean of 4.2% and a median of 4.31%.
 
-```{r}
+```{r overdose}
 # iterate through state data files 
 unemployment <- data.frame()
 for (file in list.files("data/state", full.names = T)) {
@@ -243,9 +243,32 @@ for (i in 1:length(state.region)) {
 overdose$region[overdose$state == "DC"] <- "South"
 ```
 
-
-
 \subsection{EDA}
+
+```{r toy}
+colors_use <- sample(colors(distinct = T), size = 51, replace = F)
+states <- levels(overdose$state)
+
+plot_state <- function(v) {
+  mydf <- subset(overdose, state == "AK")
+  plot(mydf[,v][order(mydf$dates)] ~ mydf$dates[order(mydf$dates)],
+       type = "l",
+       ylim = range(overdose[,v]), 
+       col = colors_use[1], xlab = "", ylab = v)
+  for (i in 2:(length(states))) {
+    mydf <- subset(overdose, state == states[i])
+    lines(mydf[,v][order(mydf$dates)] ~ mydf$dates[order(mydf$dates)],
+          col = colors_use[i])
+  }
+}
+
+par(mfrow = c(2, 4), mar = c(2, 4, 1, 1))
+for (v in c("overdoseDeaths", "unemployment", "permits", "imports", 
+            "exports", "income", "population")) {
+  plot_state(v)
+}
+
+```
 
 ```{r}
 # histogram and boxplot of response
