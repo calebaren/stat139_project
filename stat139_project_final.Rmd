@@ -474,16 +474,23 @@ varImpPlot(rf1, main = "Random Forest Feature Importance", pch = 20,
            cex = 0.8)
 ```
 
-Unemployment is relatively not important in the random forest model. It appears as though state and area (which is correlated with state) are the most important predictors. In order to handle the grouped nature of state, area, and so forth, we fit mixed models below.  
+Unemployment is relatively not important in the random forest model. It appears as though state and area (which is correlated with state) are the most important predictors. In order to handle the grouped nature of time, state, area, and so forth, we fit a mixed effects model.  
+
+Below, we fit a three-layered mixed-effects model. The first two layers are state and year respectively. Theoretically, we would prefer to fit a four-layered model which includes month below year. This is impossible with our dataset ($n = 2448$). With 51 states, 5 years, and 12 months, we would need a minimum of $51 \times 5 \times 12 = 3060$ samples in order to fit such am model. We include a random intercept for states and years. The only random effect we include in the model is unemployment. These are purposeful design choices considering the limited size of our dataset. More complex models would not be reasonably fit.
 
 ```{r mixed}
 library(lme4) # package
 
 # mixed effects model
-lmer1 <- lmer(overdoseDeaths ~ dates + (1 | dates) + (1 + unemployment | state), data = train)
+lmer1 <- lmer(log(overdoseDeaths) ~ month + 
+                permits + imports + exports + income + 
+                population + region + area + unemployment + 
+                (1 + unemployment | state/year), data = train,
+                control = lmerControl(optCtrl = list(maxfun = 20000))
 
-lmer1.train <- rmse(predict(lmer1, newdata = train), train$overdoseDeaths)
-lmer1.test <- rmse(predict(lmer1, newdata = test), test$overdoseDeaths)
+# record results
+lmer1.train <- rmse(predict(lmer1, newdata = train), log(train$overdoseDeaths))
+lmer1.test <- rmse(predict(lmer1, newdata = test), log(test$overdoseDeaths))
 ```
 
 \section{Results}
