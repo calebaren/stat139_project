@@ -1,5 +1,5 @@
 ---
-title: "Drugs and Jobs: The effect of unemployment on drug overdose deaths in America"
+title: "Drugs and Jobs: The Effect of Unemployment on Drug Overdose Deaths in America"
 author: "Evan Arnold and Caleb Ren"
 date: "12/06/2019"
 bibliography: bibliography.bib
@@ -7,7 +7,7 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = F, cache = T, fig.height = 4, fig.align = 'center',
+knitr::opts_chunk$set(echo = T, cache = T, fig.height = 4, fig.align = 'center',
                       message = F, warning = F)
 set.seed(139)
 require(scales)
@@ -81,6 +81,8 @@ Unemployment data was sourced from the Bureau of Labor Statistics. Unemployment 
 There is a very specific definition of who in the labor force is considered *unemployed*. According to the BLS, those who are currently unemployed are those who are "jobless, looking for a job, and avaiable for work." People who are incarcerated, in a nursing home, or in a mental health care facility are not considered unemployed as they are not fit for work.
 
 Using this definition, data was scraped from the BLS website and aggregated by each state and the District of Columbia. The unemployment rate in percent is given by the `unemployment` column. The lowest unemployment rate in a given state and month is Vermont in 2019 with a 2.1% unemployment rate. The highest rate is DC in 2015 with a 7.4% unemployment rate. The data itself is roughly Normally distributed with a mean of 4.2% and a median of 4.31%.
+
+We hypothesize that unemployment will have a significant positive association with overdose death rate. We believe unemployment worses community conditions and potentially leads to increase abuse of opioids.
 
 ```{r overdose}
 # iterate through state data files 
@@ -278,7 +280,7 @@ any(finite | nans | nas | nulls)
 We now consider the possibility of multicollinearity. As shown below, some of the quantitative features of our dataset are highly correlated (population and imports, imports and exports,...). In order to handle this multicolinearity, we will consider ensemble models such as random forests.
 
 ```{r collinearity}
-cor(overdose[,c(6:11, 13)])
+round(cor(overdose[,c(6:11, 13)]), 3)
 ```
 
 
@@ -355,7 +357,7 @@ boxplot(log(overdose$overdoseDeaths), main = "Boxplot of Log-Overdose Deaths",
         xlab = "Log-Overdose Deaths")
 ```
 
-We see that the data is much closer to a Normal distribution if we apply a log transformation. We shall predict the log-rate of overdose deaths in our linear models.
+We see that the data is much closer to a Normal distribution if we apply a log transformation. We shall predict the log-rate of overdose deaths in our models.
 
 ```{r}
 # response vs. unemployment
@@ -384,7 +386,7 @@ rmse <- function(m, o){
 }
 
 # simple linear model
-summary(lm1 <- lm(log(overdoseDeaths) ~ unemployment, data = train))
+summary(lm1 <- lm(log(overdoseDeaths) ~ unemployment, data = train))$coefficients[2,]
 lm1.train <- rmse(predict(lm1, train), log(train$overdoseDeaths))
 lm1.test <- rmse(predict(lm1, test), log(test$overdoseDeaths))
 ```
@@ -420,6 +422,9 @@ lm3 <- lm(log(overdoseDeaths) ~ state + month  + year +
 # ESS F-test
 anova(lm2, lm3)
 
+# relevant coefficients
+coef(lm3)[c("unemployment", "income", "imports", "exports", "permits")]
+
 # record predictive results
 lm2.train <- rmse(predict(lm2, train), log(train$overdoseDeaths))
 lm2.test <- rmse(predict(lm2, test), log(test$overdoseDeaths))
@@ -428,6 +433,8 @@ lm3.test <- rmse(predict(lm3, test), log(test$overdoseDeaths))
 ```
 
 With an F-statistic of $13.387$ (with $1887$, $1$ degrees of freedom) and a corresponding p-value $<0.001$, unemployment provides significant predictive ability. We now consider the same ESS F-test with quadratic models.
+
+Unemployment now has a negative coefficient. This is likely due to multicollinearity following from the results of our simple linear model. Regardless, this result contradicts our hypothesis concerning unemployment. We do, however, see positive coefficients for income and exports, and a negative coefficient for imports (as we hypothesized in data collection and EDA). The coefficient for permits is negative, which contradicts our hypothesis.
 
 ```{r polynomial}
 # quadratic model with all main effects excluding unemployment
@@ -516,9 +523,12 @@ lmer1.test <- rmse(predict(lmer1, newdata = test), log(test$overdoseDeaths))
 
 # variable significance
 anova(lmer1)
+
+# unemployment coefficient
+fixef(lmer1)["unemployment"]
 ```
 
-We are not able to calculate p-values for the anova table (the statistics from a mixed model are not F-distributed), however, we can reasonably say that month is the most significant predictor followed by per capita income and region. Unemployment is relatively significant, however, we can show its significance using a p-value. 
+We are not able to calculate p-values for the anova table (the statistics from a mixed model are not F-distributed), however, we can reasonably say that month is the most significant predictor followed by per capita income and region. Unemployment is relatively significant, however, we can show its significance using a p-value. In this model, unemployment has a negative coefficent. This contradicts our simple model and our hypothesis. 
 
 \section{Results}
 
@@ -542,7 +552,7 @@ Unemployment is a significant preditor of overdose death rates. Our simple linea
 
 We further explored this result with two additional models: a lasso regression model and a random forest regression model. The lasso model showed that unemployment is one of the later predictors to shrink to zero. This coroborates its significance. The random forest model, however, gave much more importance to state, and other non-monthly variables. We can control for these varaibles with a mixed effects model. 
 
-Our mixed effects model controled for state and year grouping (with random intercepts) as well as included a random slope for unemployment. The anova table of the resulting model (though limited due to data contraints) showed that unemployment is indeed likely significant. 
+Our mixed effects model controled for state and year grouping (with random intercepts) as well as included a random slope for unemployment. The anova table of the resulting model (though limited due to data contraints) showed that unemployment is likely significant. The coefficient for unemployment in this model is negative. We are therefore uncertain as to the association between unemployment and overdose deaths. 
 
 *Prediction:* 
 
