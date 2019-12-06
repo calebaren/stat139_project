@@ -1,5 +1,5 @@
 ---
-title: "Drugs and Jobs: The effect of unemployment on drug overdose deaths in America"
+title: "Drugs and Jobs: The Effect of Unemployment on Drug Overdose Deaths in America"
 author: "Evan Arnold and Caleb Ren"
 date: "12/06/2019"
 bibliography: bibliography.bib
@@ -7,7 +7,7 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = F, cache = T, fig.height = 4, fig.align = 'center',
+knitr::opts_chunk$set(echo = T, cache = T, fig.height = 4, fig.align = 'center',
                       message = F, warning = F)
 set.seed(139)
 require(scales)
