@@ -240,7 +240,7 @@ overdose <- merge(overdose, population, by = c("state", "year"))
 
 R inherently has several statistics about states. Most of these are static estimates from the early 70's (population estimates, income per capita, illiteracy,...). We can, however, use the datasets which give information about the region a state is in. This is a categorical variable with four categories: northeast, northcentral, south, and west. Though the nomenclature is dated, these categories reasonably divide states by potentially important factors. For example, we expect the Rust Belt (which R includes in the region northcentral) to have a positive association with overdose deaths (as noted above). Here we note that we have to encode Washington DC ourselves as the data in R does not contain the District of Columbia (in accordance with R's encoding, Washington DC is in the south). 
 
-R also provides us with the area of each state in square miles. Again, we must encode Washington DC manually [@Brittanica]. 
+R also provides us with the area of each state in square miles. Again, we must encode Washington DC manually (source: https://www.britannica.com/place/Washington-DC). 
 
 ```{r R_data}
 # region and area
@@ -330,18 +330,14 @@ We see that the data is much closer to a Normal distribution if we apply a log t
 
 ```{r}
 # response vs. unemployment
-par(mfrow = c(1, 2))
-plot(overdoseDeaths ~ unemployment, data = overdose,
-     main = "Overdose Deaths vs. Unemployment",
-     xlab = "Unemployment Percent", ylab = "Overdose Deaths",
-     pch = 16, col = rgb(0, 0, 0, 0.3))
+par(mfrow = c(1, 1))
 plot(log(overdoseDeaths) ~ unemployment, data = overdose,
      main = "Log Overdose Deaths vs. Unemployment",
      xlab = "Unemployment Percent", ylab = "Log Overdose Deaths",
      pch = 16, col = rgb(0, 0, 0, 0.3))
 ```
 
-\section{Results}
+\subsection{Baseline Model}
 
 ```{r}
 # train/test data for cross validation
@@ -354,8 +350,8 @@ train <- overdose[samples,]
 test <- overdose[-samples,]
 
 # rmse function
-rmse <- function(v1, v2) {
-  return(sqrt(mean((v1 - v2)^2)))
+rmse <- function(m, o){
+  return(sqrt(mean((m - o)^2)))
 }
 
 # simple linear model
@@ -456,9 +452,6 @@ legend("topleft", colnames(X)[c(1,64:79)], col = seq_len(length(cols)),
 lasso.train <- sqrt(min(lasso.cv$cvm))
 testX <- model.matrix(formula(polynomial2), data = test)
 testY <- predict(lasso.cv, newx = testX)
-
-# matplot(log(lasso.cv$lambda, 10), t(lasso.cv$beta), type = "l",
-        # main = "Lasso Feature Selection", xlab = "log(lambda)", ylab = "beta")
 lasso.test <- rmse(testY, log(test$overdoseDeaths))
 ```
 
@@ -492,13 +485,19 @@ library(lme4) # package
 lmer1 <- lmer(log(overdoseDeaths) ~ month + 
                 permits + imports + exports + income + 
                 population + region + area + unemployment + 
-                (1 + unemployment | state/year), data = train,
-                control = lmerControl(optCtrl = list(maxfun = 20000))
+                (1 + unemployment | state/year), data = train)
 
 # record results
 lmer1.train <- rmse(predict(lmer1, newdata = train), log(train$overdoseDeaths))
 lmer1.test <- rmse(predict(lmer1, newdata = test), log(test$overdoseDeaths))
+
+# variable significance
+anova(lmer1)
 ```
+
+We are not able to calculate p-values for the anova table (the statistics from a mixed model are not F-distributed), however, we can reasonably say that month is the most significant predictor followed by per capita income and region. Unemployment is relatively significant, however, we can show its significance using a p-value. 
+
+\section{Results}
 
 ```{r rmse}
 rmse.overdose <- data.frame(
@@ -513,11 +512,26 @@ rmse.overdose
 
 \section{Conclusions and Decisions}
 
-Based on root-mean-square error, the model that performs the best in terms of minimizing predictive error on the holdout set would be the random forest model.
+*The Significance of Unemployment:* 
+
+Unemployment is a significant preditor of overdose death rates. Our simple linear model agrees with this, however, our goal is to show that this relationship holds when other predictors are considered. We thus fit two kitchen sink linear models: one which includes unemployment, and one which does not. An ESS F-test showed that unemplyment provides significant predictive power. We corroborated this result with the same analysis on two quadratic kitchen sink models (again, one included unemployment while the other did not). The resulting ESS F-test agreed with that of the linear models.
+
+We further explored this result with two additional models: a lasso regression model and a random forest regression model. The lasso model showed that unemployment is one of the later predictors to shrink to zero. This coroborates its significance. The random forest model, however, gave much more importance to state, and other non-monthly variables. We can control for these varaibles with a mixed effects model. 
+
+Our mixed effects model controled for state and year grouping (with random intercepts) as well as included a random slope for unemployment. The anova table of the resulting model (though limited due to data contraints) showed that unemployment is indeed likely significant. 
+
+*Prediction:* 
+
+The least predictive model is the simple linear model. The rest of the linear models (including the quadratic and lasso-regularized models) performed very similarlly on the test and train sets. This indicates that overfitting is not a serious concern for any of our models. The random forest model and the mixed effects model performed the best reducing RMSE by more than half that of the multiples linear models.
 
 \section{Direction of Future Research}
 
+*Sample Size:*
 
-```
+Month is the most important fixed effect in the mixed model. The predictive ability of the model may increase if month is included as a grouping variable. In our analysis, this was not possible due to limited sample size. In the future, it will be possible to fit such a model. 
+
+*Predictors:*
+
+The insignificance of many of our predictors in the mixed model indicates that we are likely missing important variables for predicting overdose death rates. Some potential predictors are: average temperature, crime rate, high school graduation rate, and literacy rate among others. As of now, these predictors are either not readily available online, not current, or not available in a reasonably frequent timeserie. As more data comes out, variables such as these may add significant predictive power.
 
 \section{References}
