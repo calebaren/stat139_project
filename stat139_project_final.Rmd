@@ -16,6 +16,8 @@ set.seed(139)
 
 Overdose deaths in the US have increased dramatically since 1999. Opioid use deaths in particular have reached epidemic levels, with a 200\% increase in overdose deaths between 2000 and 2014 [@Ghertner2018]. The Centers for Disease Control and Prevention estimates that over 60,000 drug overdose deaths occurred in 2016, three times the rate of drug deaths as 1999 [@Hedegaard2018]
 
+Our analysis has two goals. First, we will determine the significane of unemployment when predicting overdose death rates, and validate this significance in the presence of other predictors. Second, we will determine which model from a set of possible, well-tuned models has the most predictive ability.
+
 \section{Exploratory Data Anslysis Methods}
 
 \subsection{Data Summary}
@@ -485,12 +487,7 @@ library(lme4) # package
 lmer1 <- lmer(log(overdoseDeaths) ~ month + 
                 permits + imports + exports + income + 
                 population + region + area + unemployment + 
-<<<<<<< HEAD
                 (1 + unemployment | state/year), data = train)
-=======
-                (1 + unemployment | state/year), data = train,
-                control = lmerControl(optCtrl = list(maxfun = 20000)))
->>>>>>> f55673de1984cb743d6bdf6bff29bd1b8cdb09a2
 
 # record results
 lmer1.train <- rmse(predict(lmer1, newdata = train), log(train$overdoseDeaths))
