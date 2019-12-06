@@ -5,10 +5,11 @@ date: "12/06/2019"
 geometry: margin = 2cm
 bibliography: bibliography.bib
 output: 
-  pdf_document: 
+  html_document: 
     toc: true
     number_sections: true
     fig_caption: yes
+    theme: united
 ---
 \newpage
 
