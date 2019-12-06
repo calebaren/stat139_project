@@ -301,9 +301,9 @@ We see that the data is much closer to a Normal distribution if we apply a log t
 ```{r}
 # response vs. unemployment
 par(mfrow = c(1, 1))
-plot(overdoseDeaths ~ unemployment, data = overdose,
-     main = "Overdose Deaths vs. Unemployment",
-     xlab = "Unemployment Percent", ylab = "Overdose Deaths",
+plot(log(overdoseDeaths) ~ unemployment, data = overdose,
+     main = "Log Overdose Deaths vs. Unemployment",
+     xlab = "Unemployment Percent", ylab = "Log Overdose Deaths",
      pch = 16, col = rgb(0, 0, 0, 0.3))
 ```
 
@@ -311,31 +311,47 @@ plot(overdoseDeaths ~ unemployment, data = overdose,
 
 ```{r}
 # train/test data for cross validation
-samples <- sample(nrow(overdose), size = 0.8 * nrow(overdose), replace = F)
+samples <- c()
+for (i in 1:length(states)) {
+  lower <- (1 + (i - 1) * 48); upper <- (48 * i)
+  samples <- c(samples, sample(lower:upper, size = 38))
+}
 train <- overdose[samples,]
 test <- overdose[-samples,]
 
 # rmse function
-rmse <- function(v1, v2) {
-  return(sqrt(mean((v1 - v2)^2)))
+rmse <- function(m, o){
+  return(sqrt(mean((m - o)^2)))
 }
 
-# simple linear model
+# log linear model
 summary(lm1 <- lm(overdoseDeaths ~ unemployment, data = train))
 lm1.train <- rmse(predict(lm1, train), train$overdoseDeaths)
 lm1.test <- rmse(predict(lm1, test), test$overdoseDeaths)
+
+# log linear model
+summary(lm2 <- lm(log(overdoseDeaths) ~ unemployment, data = train))
+lm2.train <- rmse(exp(predict(lm2, train)), train$overdoseDeaths)
+lm2.test <- rmse(exp(predict(lm2, test)), test$overdoseDeaths)
 ```
 
 The simple regression model has a positive coefficient for unemployment ($13.164$). With a $t$-statistic of $15.345$ ($p$-value $\approx 0$), this coefficient is very significant. The model has a positive association between unemployment and overdose deaths. 
 
 ```{r}
 # observations with simple regression line
+par(mfrow = c(1, 2), mar = c(1, 1, 1, 1))
 plot(overdoseDeaths ~ unemployment, data = overdose,
      main = "Overdose Deaths vs. Unemployment",
      xlab = "Unemployment Percent", ylab = "Overdose Deaths",
      col = rgb(0, 0, 0, 0.3), pch = 16)
 x <- seq(min(overdose$unemployment), max(overdose$unemployment), 0.01)
 y <- predict(lm1, newdata = data.frame(unemployment = x))
+lines(y ~ x, col = "red", lwd = 3)
+plot(log(overdoseDeaths) ~ unemployment, data = overdose,
+     main = "Log-Overdose Deaths vs. Unemployment",
+     xlab = "Unemployment Percent", ylab = "Log Overdose Deaths",
+     col = rgb(0, 0, 0, 0.3), pch = 16)
+y <- predict(lm2, newdata = data.frame(unemployment = x))
 lines(y ~ x, col = "red", lwd = 3)
 ```
 
@@ -379,13 +395,9 @@ X <- model.matrix(formula(polynomial2), data = train)
 y <- train$overdoseDeaths
 lasso.cv <- cv.glmnet(X, y, alpha = 1)
 # feature importance plot
-plot(lasso.cv$glmnet.fit, "lambda", main = "Lasso Feature Selection",
-     xlab = "log(lambda)", ylab = "beta")
-# matplot(log(lasso.cv$lambda, 10), t(lasso.cv$beta), type = "l",
-#         main = "Lasso Feature Selection", xlab = "log(lambda)", ylab = "beta")
-legend("topleft", colnames(X)[1:14], col = seq_len(ncol(X)[1:14]), fill = seq_len(14))
 plot(lasso.cv$glmnet.fit, "lambda", main = "Lasso Feature Selection", 
      xlab = "log(lambda)", ylab = "Beta")
+legend("topleft", colnames(X)[1:14], col = seq_len(ncol(X)[1:14]), fill = seq_len(14))
 
 lasso.train <- sqrt(min(lasso.cv$cvm))
 testX <- model.matrix(formula(polynomial2), data = test)
@@ -407,7 +419,7 @@ library(randomForest) # package
 # random forest
 rf1 <- randomForest(overdoseDeaths ~ unemployment + permits + 
                       imports + exports + income + population +
-                      region + state, 
+                      region + state + dates, 
                     data = train, mtry = 3, ntree = 500)
 
 rf1.train <- rmse(rf1$predicted, train$overdoseDeaths)
@@ -424,7 +436,7 @@ Unemployment is relatively not important in the random forest model.
 library(lme4) # package
 
 # mixed effects model
-lmer1 <- lmer(overdoseDeaths ~ year + month + (1 | year) + (1 | month) + (1 | state), data = train)
+lmer1 <- lmer(overdoseDeaths ~ dates + (1 | dates) + (1 + unemployment | state), data = train)
 
 lmer1.train <- rmse(predict(lmer1, newdata = train), train$overdoseDeaths)
 lmer1.test <- rmse(predict(lmer1, newdata = test), test$overdoseDeaths)
@@ -434,11 +446,11 @@ lmer1.test <- rmse(predict(lmer1, newdata = test), test$overdoseDeaths)
 
 ```{r rmse}
 rmse.overdose <- data.frame(
-  train = c(lm1.train, poly1.train, poly2.train, lasso.train, 
+  train = c(lm1.train, lm2.train, poly1.train, poly2.train, lasso.train, 
             rf1.train, lmer1.train),
-  test = c(lm1.test, poly1.test, poly2.test, lasso.test, 
+  test = c(lm1.test, lm2.test, poly1.test, poly2.test, lasso.test, 
            rf1.test, lmer1.test),
-  row.names = c("lm1", "poly1", "poly2", "lasso", "rf1", "lmer1")
+  row.names = c("lm1", "lm2", "poly1", "poly2", "lasso", "rf1", "lmer1")
 )
 ```
 
