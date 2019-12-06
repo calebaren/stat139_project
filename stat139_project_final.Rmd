@@ -7,7 +7,7 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = T, cache = T, fig.height = 4, fig.align = 'center',
+knitr::opts_chunk$set(echo = F, cache = T, fig.height = 4, fig.align = 'center',
                       message = F, warning = F)
 set.seed(139)
 require(scales)
@@ -24,11 +24,9 @@ As such, our analysis has two goals. First, we will determine the significance o
 
 \section{Exploratory Data Analysis Methods}
 
-\subsection{Data Summary}
-
 Data was collected from a total of 3 sources: the Centers for Disease Control and Prevention (CDC), the Federal Bureau of Labor Statistics (BLS), and the Federal Reserve Bank of St. Louis' Federal Reserve Economic Data (FRED).
 
-\subsubsection{CDC}
+\subsection{CDC}
 
 We collected health data from the CDC in the form of the Vital Statistics Rapid Release Dataset [@VSRR]. The VSRR data contains provisional counts of drug overdose deaths in the US as reported by agencies from all 50 states and the District of Columbia. The data is collected on a monthly basis.
 
@@ -107,31 +105,7 @@ overdose <- merge(overdose, unemployment, by = c("state", "year", "month"))
 
 # order
 overdose <- overdose[order(overdose$year, overdose$state, overdose$month),]
-```
 
-\subsubsection{BLS}
-
-Unemployment data was sourced from the Bureau of Labor Statistics. Unemployment data is published in monthly increments from the Bureau of Labor Statistics by state [@BLS]. Data is published beginning in 1976 and is published on the first of each month describing the previous month's unemployment rate.
-
-There is a very specific definition of who in the labor force is considered *unemployed*. According to the BLS, those who are currently unemployed are those who are "jobless, looking for a job, and available for work." People who are incarcerated, in a nursing home, or in a mental health care facility are not considered unemployed as they are not fit for work.
-
-Using this definition, data was scraped from the BLS website and aggregated by each state (including the District of Columbia). The lowest unemployment rate in a given state and month is Vermont in 2019 with a 2.1\% unemployment rate. The highest rate is DC in 2015 with a 7.4\% unemployment rate. The data itself is roughly Normally distributed with a mean of 4.2\% and a median of 4.31\%.
-
-We hypothesize that unemployment will have a significant positive association with overdose death rate. A working mechanism may be that unemployment exacerbates existing community economic strife and potentially leads to increase abuse of opioids.
-
-\subsubsection{FRED}
-
-Here we consider a series of variables from the Federal Reserve Bank of St. Louis' Federal Reserve Economic Data database. All such datasets are originally from Bureau of Labor Statistics or the U.S. Census Bureau; however, FRED publishes their data in a more accessible form.
-
-First, we consider the number of new private housing units authorized by building permit. This timeseries is reported monthly. In our analysis, this variable serves as a proxy to housing development as well as the health of the housing market; more permits implies a healthy housing market and ample housing options. We thus expect a negative association between overdose deaths and new housing permits. 
-
-Next, we consider the money spent on imports of manufactored and non-manufactored commodities in millions of dollars. This timeseries is reported monthly. This feature will offer our analysis an insight into the health of the state-local manufactoring sector. In the past few years, the states with some of the worst opioid overdose numbers are those in in the Rust Belt (https://www.drugabuse.gov/drugs-abuse/opioids/opioid-summaries-by-state). One potential narrative is that the increased use of overseas labor stips entire communities of their jobs, and many of those effected turn to opioids. We can reasonably quantify this effect by state with the number of dollars spent on imports. We expect an increase in spending on imports to imply a decrease in availability of manufactoring jobs and the health of the local manufactoring sector, and thus we expect a positive association between import spending and overdose deaths.
-
-Now, we consider the value of manufactored and non-manufactored exports in millions of dollars. This timeseries is reported monthly. We hope to use this variable as another perspective on the health of manufactoring and the availability of jobs in the manufactoring sector. We expect the value of exports to have a negative association with overdose deaths. 
-
-Finally, we consider per capita personal income in dollars. This timeseries is reported annually. It is reasonable to assume that the average personal income does not change dramatically intrayear. Per capita income affords us a glimpse into the personal financial freedom of state residents. We chose to include per capita income instead of median household income in order to capture the influence of the wealthly. We expect a negative association between income and overdose deaths.
-
-```{r stlouis}
 # convert Federal Reserve Bank of St. Louis data to long-form
 stlouis <- function(wide, var.name, state_start, state_end) {
   # states to include
@@ -204,7 +178,27 @@ overdose <- merge(overdose, exports, by = c("state", "dates"))
 overdose <- merge(overdose, income, by = c("state", "year"))
 ```
 
-Below, we include annual population estimates from the Census Bureau. We use annual data for two reasons: the availability of state population estimates is limited and we can reasonably assume that state population does not change dramatically intrayear. Furthermore, we use the population estimate from the previous year as a given year's population variable. We do so becuase population estimates are generated late into the year, and thus for any given year, the previous year's Census Bureau estimate is likely more accurate. We will use population to normalize the other predictors.
+\subsection{BLS}
+
+**Unemployment** data was sourced from the Bureau of Labor Statistics. Unemployment data is published in monthly increments from the Bureau of Labor Statistics by state [@BLS]. Data is published beginning in 1976 and is published on the first of each month describing the previous month's unemployment rate.
+
+There is a very specific definition of who in the labor force is considered *unemployed*. According to the BLS, those who are currently unemployed are those who are "jobless, looking for a job, and available for work." People who are incarcerated, in a nursing home, or in a mental health care facility are not considered unemployed as they are not fit for work.
+
+Using this definition, data was scraped from the BLS website and aggregated by each state (including the District of Columbia). The lowest unemployment rate in a given state and month is Vermont in 2019 with a 2.1\% unemployment rate. The highest rate is DC in 2015 with a 7.4\% unemployment rate. The data itself is roughly Normally distributed with a mean of 4.2\% and a median of 4.31\%.
+
+We hypothesize that unemployment will have a significant positive association with overdose death rate. A working mechanism may be that unemployment exacerbates existing community economic strife and potentially leads to increase abuse of opioids.
+
+\subsection{FRED}
+
+Here, we consider a series of variables from the Federal Reserve Bank of St. Louis' Federal Reserve Economic Data database. All such datasets are originally from Bureau of Labor Statistics or the U.S. Census Bureau; however, FRED publishes their data in a more accessible form.
+
+First, we consider the number of **new private housing units** authorized by building permits. This timeseries is reported monthly. In our analysis, this variable serves as a proxy to housing development as well as the health of the housing market; more permits implies a healthy housing market and ample housing options. We thus expect a negative association between overdose deaths and new housing permits. 
+
+Next, we consider the money spent on **imports** and **exports** of manufactored and non-manufactored commodities in millions of dollars. This time-series are reported monthly. This feature will offer our analysis an insight into the health of the state-local manufactoring sector. In the past few years, the states with some of the worst opioid overdose numbers are those in in the Rust Belt [@OpioidSummary]. One potential narrative is that the increased use of overseas labor stips entire communities of their jobs, and many of those effected turn to opioids. We can reasonably quantify this effect by state with the number of dollars spent on imports. We expect an increase in spending on imports to imply a decrease in availability of manufactoring jobs and the health of the local manufactoring sector, and thus we expect a positive association between import spending and overdose deaths. By way of analygy, we expect the value of exports to have a negative association with overdose deaths. 
+
+Finally, we consider per capita personal **income** in dollars. This timeseries is reported annually. It is reasonable to assume that the average personal income does not change dramatically intrayear. Per capita income affords us a glimpse into the personal financial freedom of state residents. We chose to include per capita income instead of median household income in order to capture the influence of the wealthly. We expect a negative association between income and overdose deaths.
+
+Below, we include annual **population** estimates from the Census Bureau. We use annual data for two reasons: the availability of state population estimates is limited and we can reasonably assume that state population does not change dramatically intrayear. Furthermore, we use the population estimate from the previous year as a given year's population variable. We do so becuase population estimates are generated late into the year, and thus for any given year, the previous year's Census Bureau estimate is likely more accurate. We will use population to normalize the other predictors.
 
 ```{r population}
 # data
@@ -242,9 +236,7 @@ colnames(population)[2] <- "year"
 overdose <- merge(overdose, population, by = c("state", "year"))
 ```
 
-R inherently has several statistics about states. Most of these are static estimates from the early 70's (population estimates, income per capita, illiteracy,...). We can, however, use the datasets which give information about the region a state is in. This is a categorical variable with four categories: northeast, northcentral, south, and west. Though the nomenclature is dated, these categories reasonably divide states by potentially important factors. For example, we expect the Rust Belt (which R includes in the region northcentral) to have a positive association with overdose deaths (as noted above). Here we note that we have to encode Washington DC ourselves as the data in R does not contain the District of Columbia (in accordance with R's encoding, Washington DC is in the south). 
-
-R also provides us with the area of each state in square miles. Again, we must encode Washington DC manually (source: https://www.britannica.com/place/Washington-DC). 
+R inherently has several statistics about states. Most of these are static estimates from the early 70's (population estimates, income per capita, illiteracy, etc.). We can, however, use the datasets which give information about the region a state is in, as well as area (which has remained unchanged since the time of data collection). `Region` is a categorical variable with four categories: `north`, `northcentral`, `south`, and `west` Though the nomenclature is dated, these categories reasonably divide states by potentially important factors. For example, we expect the Rust Belt (which R includes in the region northcentral) to have a positive association with overdose deaths (as noted above). Here we note that we have to encode Washington, D.C., ourselves as the data in R does not contain the District of Columbia (in accordance with R's encoding, Washington, D.C., is in the South) [@Brittanica].
 
 ```{r R_data}
 # region and area
@@ -290,7 +282,7 @@ round(cor(overdose[,c(6:11, 13)]), 3)
 ```
 
 
-```{r toy}
+```{r state_region}
 states <- levels(overdose$state)
 regions <- levels(overdose$region)
 col_state <- sample(rainbow(51))
