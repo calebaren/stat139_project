@@ -13,6 +13,8 @@ set.seed(139)
 
 \section{Introduction and Motivation}
 
+Overdose deaths in the US have increased dramatically since 1999
+
 \section{Exploratory Data Anslysis Methods}
 
 \subsection{Data Summary}
@@ -23,7 +25,7 @@ The data of import to this project is the number of deaths in each state as a re
 
 There were over 26052 data points from the VSRR dataset. Of those data points, many are individual observation of different coded deaths from different drugs; after reshaping and data cleaning, there are now 2652 individual observations. The data ranges from 2015 to 2019, with each state reporting 52 observations (once per month). Overdose deaths range from 55 deaths in the month of May 2015 in South Dakota to a high of 5697 in Pennsylvania in September of 2017.
 
-```{r}
+```{r reading}
 # overdose dataset 
 overdose <- read.csv("data/overdose.csv")
 
@@ -58,37 +60,20 @@ overdose$month <- ordered(overdose$month, levels = months.levels, labels = month
 
 # relevant columns
 overdose <- overdose[,1:4]
-```
 
-```{r exports}
-multmerge <- function(mypath) {
-  filesnames <- list.files(path = "data/exports", full.names = T)
-  datalist <- lapply(filesnames, function(x) {read.csv(file = x, header = T) })
-  Reduce(function(d1, d2) merge(d1, d2, by = "DATE"), datalist)
-}
-exports <- multmerge("data/exports")
+# adding dates
+overdose$dates <- as.Date(paste("01", overdose$month, overdose$year, sep =""), 
+                          format = "%d%b%Y")
 ```
 
 ```{r censusapi}
 require("censusapi")
 Sys.setenv(CENSUS_KEY = '3473513fa1cde2a0539bd2449749c5a3a4fc45ce')
 readRenviron("~/.Renviron")
-Sys.getenv("CENSUS_KEY")
+key <- Sys.getenv("CENSUS_KEY")
 
 # list census apis
 apis <- listCensusApis()
-
-# test call
-tracts <- NULL
-for (f in fips) {
-    stateget <- paste("state:", f, sep="")
-    temp <- getCensus(name = "sf3",
-        vintage = 1990,
-        vars = c("P0070001", "P0070002", "P114A001"),
-        region = "tract:*",
-        regionin = stateget)
-    tracts <- rbind(tracts, temp)
-}
 ```
 
 Unemployment data was sourced from the Bureau of Labor Statistics. Unemployment data is published in monthly increments from the Bureau of Labor Statistics by state. Data is published beginning in 1976 and is published on the first of each month describing the previous month's unemployment rate.
@@ -97,7 +82,7 @@ There is a very specific definition of who in the labor force is considered *une
 
 Using this definition, data was scraped from the BLS website and aggregated by each state and the District of Columbia. The unemployment rate in percent is given by the `unemployment` column. The lowest unemployment rate in a given state and month is Vermont in 2019 with a 2.1% unemployment rate. The highest rate is DC in 2015 with a 7.4% unemployment rate. The data itself is roughly Normally distributed with a mean of 4.2% and a median of 4.31%.
 
-```{r}
+```{r overdose}
 # iterate through state data files 
 unemployment <- data.frame()
 for (file in list.files("data/state", full.names = T)) {
@@ -179,14 +164,29 @@ imports <- read.table("data/imports/Imports.txt", header = T)
 permits <- read.table("data/permits/Permits.txt", header = T)
 income <- read.table("data/income/income.txt", header = T)
 
+multmerge <- function(mypath) {
+  filesnames <- list.files(path = "data/exports", full.names = T)
+  datalist <- lapply(filesnames, function(x) {read.csv(file = x, header = T) })
+  Reduce(function(d1, d2) merge(d1, d2, by = "DATE"), datalist)
+}
+exports <- multmerge("data/exports")
+names(exports) <- c("dates", substr(names(exports)[-1], 7, 9))
+
 # convert to long-form
 permits <- stlouis(permits, "permits", 1, 2)
 imports <- stlouis(imports, "imports", 7, 8)
 income <- stlouis(income, "income", 1, 2)[-3]
+exports <- reshape(exports, 
+                   direction = "long", varying = names(exports)[-1], 
+                   v.names = "exports", timevar = "state", 
+                   times = names(exports)[-1])
+exports$dates <- as.Date(exports$date)
+exports$id <- NULL
 
 # combine with overdose and unemployment data
 overdose <- merge(overdose, permits, by = c("state", "year", "month"))
 overdose <- merge(overdose, imports, by = c("state", "year", "month"))
+overdose <- merge(overdose, exports, by = c("state", "dates"))
 overdose <- merge(overdose, income, by = c("state", "year"))
 ```
 
@@ -244,6 +244,7 @@ overdose$region[overdose$state == "DC"] <- "South"
 overdose$region <- factor(overdose$region)
 ```
 
+<<<<<<< HEAD
 Normalize overdose deaths, permits, and imports. These variables are now relative values per 100000 people. 
 
 ```{r normal}
@@ -252,9 +253,34 @@ overdose$overdoseDeaths <- (overdose$overdoseDeaths / overdose$population) * 100
 overdose$permits <- (overdose$permits / overdose$population) * 100000
 overdose$imports <- (overdose$imports / overdose$population) * 100000
 ```
-
-
+=======
 \subsection{EDA}
+>>>>>>> 4e20851c5972817f7f45fe8698b388fa7e0bbdac
+
+```{r toy}
+colors_use <- sample(colors(distinct = T), size = 51, replace = F)
+states <- levels(overdose$state)
+
+plot_state <- function(v) {
+  mydf <- subset(overdose, state == "AK")
+  plot(mydf[,v][order(mydf$dates)] ~ mydf$dates[order(mydf$dates)],
+       type = "l",
+       ylim = range(overdose[,v]), 
+       col = colors_use[1], xlab = "", ylab = v)
+  for (i in 2:(length(states))) {
+    mydf <- subset(overdose, state == states[i])
+    lines(mydf[,v][order(mydf$dates)] ~ mydf$dates[order(mydf$dates)],
+          col = colors_use[i])
+  }
+}
+
+par(mfrow = c(2, 4), mar = c(2, 4, 1, 1))
+for (v in c("overdoseDeaths", "unemployment", "permits", "imports", 
+            "exports", "income", "population")) {
+  plot_state(v)
+}
+
+```
 
 ```{r}
 # histogram and boxplot of response
