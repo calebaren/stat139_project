@@ -354,13 +354,8 @@ rmse <- function(m, o){
   return(sqrt(mean((m - o)^2)))
 }
 
-<<<<<<< HEAD
 # simple linear model
 summary(lm1 <- lm(log(overdoseDeaths) ~ unemployment, data = train))
-=======
-# log linear model
-summary(lm1 <- lm(overdoseDeaths ~ unemployment, data = train))
->>>>>>> 64c9766c638a20f2e0bab606c5c0edee15ef8e22
 lm1.train <- rmse(predict(lm1, train), train$overdoseDeaths)
 lm1.test <- rmse(predict(lm1, test), test$overdoseDeaths)
 
@@ -374,23 +369,12 @@ The simple regression model has a positive coefficient for unemployment ($0.0868
 
 ```{r}
 # observations with simple regression line
-<<<<<<< HEAD
-plot(log(overdoseDeaths) ~ unemployment, data = overdose,
-=======
-par(mfrow = c(1, 2), mar = c(1, 1, 1, 1))
-plot(overdoseDeaths ~ unemployment, data = overdose,
->>>>>>> 64c9766c638a20f2e0bab606c5c0edee15ef8e22
-     main = "Overdose Deaths vs. Unemployment",
-     xlab = "Unemployment Percent", ylab = "Overdose Deaths",
-     col = rgb(0, 0, 0, 0.3), pch = 16)
 x <- seq(min(overdose$unemployment), max(overdose$unemployment), 0.01)
 y <- predict(lm1, newdata = data.frame(unemployment = x))
-lines(y ~ x, col = "red", lwd = 3)
 plot(log(overdoseDeaths) ~ unemployment, data = overdose,
      main = "Log-Overdose Deaths vs. Unemployment",
      xlab = "Unemployment Percent", ylab = "Log Overdose Deaths",
      col = rgb(0, 0, 0, 0.3), pch = 16)
-y <- predict(lm2, newdata = data.frame(unemployment = x))
 lines(y ~ x, col = "red", lwd = 3)
 ```
 
@@ -463,17 +447,11 @@ y <- log(train$overdoseDeaths)
 lasso.cv <- cv.glmnet(X, y, alpha = 1)
 
 # feature importance plot
-<<<<<<< HEAD
 cols <- c(1,64:79)
 plot(lasso.cv$glmnet.fit, "lambda", main = "Lasso Feature Selection",
      xlab = "log(lambda)", ylab = "beta")
 legend("topleft", colnames(X)[c(1,64:79)], col = seq_len(length(cols)), 
        fill = seq_len(length(cols)))
-=======
-plot(lasso.cv$glmnet.fit, "lambda", main = "Lasso Feature Selection", 
-     xlab = "log(lambda)", ylab = "Beta")
-legend("topleft", colnames(X)[1:14], col = seq_len(ncol(X)[1:14]), fill = seq_len(14))
->>>>>>> 64c9766c638a20f2e0bab606c5c0edee15ef8e22
 
 # predictive results
 lasso.train <- sqrt(min(lasso.cv$cvm))
@@ -488,15 +466,9 @@ Lasso feature selection agrees with the results of the ESS F-test. Unemployment 
 library(randomForest) # package
 
 # random forest
-<<<<<<< HEAD
 rf1 <- randomForest(log(overdoseDeaths) ~ state + month + year + 
                     permits + imports + exports + income + 
                     population + region + area + unemployment, 
-=======
-rf1 <- randomForest(overdoseDeaths ~ unemployment + permits + 
-                      imports + exports + income + population +
-                      region + state + dates, 
->>>>>>> 64c9766c638a20f2e0bab606c5c0edee15ef8e22
                     data = train, mtry = 3, ntree = 500)
 
 rf1.train <- rmse(rf1$predicted, log(train$overdoseDeaths))
@@ -523,19 +495,11 @@ lmer1.test <- rmse(predict(lmer1, newdata = test), test$overdoseDeaths)
 
 ```{r rmse}
 rmse.overdose <- data.frame(
-<<<<<<< HEAD
   train = c(lm1.train, lm2.train, lm3.train, poly1.train, poly2.train, 
             lasso.train, rf1.train, lmer1.train),
   test = c(lm1.test, lm2.test, lm3.test, poly1.test, poly2.test, lasso.test, 
            rf1.test, lmer1.test),
   row.names = c("lm1", "lm2", "lm3", "poly1", "poly2", "lasso", "rf1", "lmer1")
-=======
-  train = c(lm1.train, lm2.train, poly1.train, poly2.train, lasso.train, 
-            rf1.train, lmer1.train),
-  test = c(lm1.test, lm2.test, poly1.test, poly2.test, lasso.test, 
-           rf1.test, lmer1.test),
-  row.names = c("lm1", "lm2", "poly1", "poly2", "lasso", "rf1", "lmer1")
->>>>>>> 64c9766c638a20f2e0bab606c5c0edee15ef8e22
 )
 ```
 
