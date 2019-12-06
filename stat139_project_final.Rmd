@@ -19,11 +19,11 @@ Overdose deaths in the US have increased dramatically since 1999
 
 \subsection{Data Summary}
 
-As a next step in our project, we collected data from the CDC in the form of the Vital Statistics Rapid Release dataset (VSRR). The VSRR data contains provisional counts of drug overdose deaths in the US as reported by agencies from all 50 states and the District of Columbia. The data is collected in on a monthly basis.
+As a next step in our project, we collected data from the CDC in the form of the Vital Statistics Rapid Release dataset (VSRR). The VSRR data contains provisional counts of drug overdose deaths in the US as reported by agencies from all 50 states and the District of Columbia. The data is collected on a monthly basis.
 
 The data of import to this project is the number of deaths in each state as a result of drug overdose. Drug overdoses are counted by state agencies in acordance to World Health Organization standards, which lay out the basic guides for reporting agencies to code and classify causes of death. Drug categories that are represented in this dataset include the major drivers of the opioid epidemic like heroin (coded by T40.1), natural opioid analgesics (morphine and codeine), synthetic opioids (oxycodone, hydrocodone, oxymorphone; T40.2), methadone (T40.3), other synthetics (fentanyl, tramadol; T40.4) and other drugs like cocaine, methamphetamine, etc.
 
-There were over 26052 data points from the VSRR dataset. Of those data points, many are individual observation of different coded deaths from different drugs; after reshaping and data cleaning, there are now 2652 individual observations. The data ranges from 2015 to 2019, with each state reporting 52 observations (once per month). Overdose deaths range from 55 deaths in the month of May 2015 in South Dakota to a high of 5697 in Pennsylvania in September of 2017.
+There were over 26052 data points from the VSRR dataset. Of those data points, many are individual observation of different coded deaths from different drugs; after reshaping and data cleaning, there are now 2652 individual observations. The data ranges from Januart 1, 2015 to April 1, 2019, with each state reporting 52 observations (once per month). Overdose deaths range from 55 deaths in the month of May 2015 in South Dakota to a high of 5697 in Pennsylvania in September of 2017.
 
 ```{r reading}
 # overdose dataset 
@@ -113,10 +113,15 @@ overdose <- merge(overdose, unemployment, by = c("state", "year", "month"))
 overdose <- overdose[order(overdose$year, overdose$state, overdose$month),]
 ```
 
-St. Louis Datasets
-permits: housing units authorized by building permits (raw count). This is a proxy for housing development.
-imports: imports in millions of dollars. This is a proxy for in-state manufactoring.
-income: annual income per capita
+Here we consider a series of variables from the Federal Reserve Bank of St. Louis (Federal Reserve Economic Data or FRED for short). All such datasets are originally from Bureau of Labor Statistics or the U.S. Census Bureau, however, FRED has their data in a more convenient format. 
+
+First, we consider the number of new private housing units authorized by building permit. This timeseries is reported monthly. In our analysis, this variable serves as a proxy to housing development as well as the health of the housing market; more permits implies a healthy housing market and ample housing options. We thus expect a negative association between overdose deaths and new housing permits. 
+
+Next, we consider the money spent on imports of manufactored and non-manufactored commodities in millions of dollars. This timeseries is reported monthly. This feature will offer our analysis an insight into the health of the state-local manufactoring sector. In the past few years, the states with some of the worst opioid overdose numbers are those in in the Rust Belt (https://www.drugabuse.gov/drugs-abuse/opioids/opioid-summaries-by-state). One potential narrative is that the increased use of overseas labor stips entire communities of their jobs, and many of those effected turn to opioids. We can reasonably quantify this effect by state with the number of dollars spent on imports. We expect an increase in spending on imports to imply a decrease in availability of manufactoring jobs and the health of the local manufactoring sector, and thus we expect a positive association between import spending and overdose deaths.
+
+Now, we consider the value of manufactored and non-manufactored exports in millions of dollars. This timeseries is reported monthly. We hope to use this variable as another perspective on the health of manufactoring and the availability of jobs in the manufactoring sector. We expect the value of exports to have a negative association with overdose deaths. 
+
+Finally, we consider per capita personal income in dollars. This timeseries is reported annually. It is reasonable to assume that the average personal income does not change dramatically intrayear. Per capita income affords us a glimpse into the personal financial freedom of state residents. We chose to include per capita income instead of median household income in order to capture the influence of the wealthly. We expect a negative association between income and overdose deaths.
 
 ```{r stlouis}
 # convert Federal Reserve Bank of St. Louis data to long-form
@@ -164,6 +169,7 @@ imports <- read.table("data/imports/Imports.txt", header = T)
 permits <- read.table("data/permits/Permits.txt", header = T)
 income <- read.table("data/income/income.txt", header = T)
 
+# handle export data (multi-file dataset)
 multmerge <- function(mypath) {
   filesnames <- list.files(path = "data/exports", full.names = T)
   datalist <- lapply(filesnames, function(x) {read.csv(file = x, header = T) })
@@ -190,10 +196,7 @@ overdose <- merge(overdose, exports, by = c("state", "dates"))
 overdose <- merge(overdose, income, by = c("state", "year"))
 ```
 
-Census Bureau Dataset
-population: raw population
-
-NOTE: For each state, we use the population estimate for the previous year for the entire year. This is due to a lack of available data as well as slow population growth across states. 
+Below, we include annual population estimates from the Census Bureau. We use annual data for two reasons: the availability of state population estimates is limited and we can reasonably assume that state population does not change dramatically intrayear. Furthermore, we use the population estimate from the previous year as a given year's population variable. We do so becuase population estimates are generated late into the year, and thus for any given year, the previous year's Census Bureau estimate is likely more accurate. We will use population to normalize the other predictors.
 
 ```{r population}
 # data
@@ -234,26 +237,53 @@ overdose <- merge(overdose, population, by = c("state", "year"))
 R Data
 region: data from R. We have to include the region for DC specifically
 
+R inherently has several statistics about states. Most of these are static estimates from the early 70's (population estimates, income per capita, illiteracy,...). We can, however, use the datasets which give information about the region a state is in. This is a categorical variable with four categories: northeast, northcentral, south, and west. Though the nomenclature is dated, these categories reasonably divide states by potentially important factors. For example, we expect the Rust Belt (which R includes in the region northcentral) to have a positive association with overdose deaths (as noted above). Here we note that we have to encode Washington DC ourselves as the data in R does not contain the District of Columbia (in accordance with R's encoding, Washington DC is in the south). 
+
+R also provides us with the area of each state in square miles. Again, we must encode Washington DC manually (source: https://www.britannica.com/place/Washington-DC). 
+
 ```{r R_data}
-# region
+# region and area
 overdose$region <- rep(NA, nrow(overdose))
+overdose$area <- rep(NA, nrow(overdose))
 for (i in 1:length(state.region)) {
-  overdose$region[overdose$state == state.abb[i]] <- as.character(state.region[i])
+  state.row <- overdose$state == state.abb[i]
+  overdose$region[state.row] <- as.character(state.region[i])
+  overdose$area[state.row] <- state.area[i]
 }
 overdose$region[overdose$state == "DC"] <- "South"
+overdose$area[overdose$state == "DC"] <- 68
 overdose$region <- factor(overdose$region)
 ```
 
-Normalize overdose deaths, permits, and imports. These variables are now relative values per 100000 people. 
+Before we begin any modeling or analyis, we must normalize overdose deaths, permits, imports, and exports. By doing so, we convert each to a rate which can be directly compared across states. In order to avoid working with very small numbers, we convert each rate to: overdose deaths per 100000 people, permits per 100000 people, spending on imports in millions of dollars per 100000 people, and value of exports in millions of dollars per 100000 people.
 
 ```{r normal}
 # normalize raw predictors
 overdose$overdoseDeaths <- (overdose$overdoseDeaths / overdose$population) * 100000
 overdose$permits <- (overdose$permits / overdose$population) * 100000
 overdose$imports <- (overdose$imports / overdose$population) * 100000
+overdose$exports <- (overdose$exports / overdose$population) * 100000
 ```
 
 \subsection{EDA}
+
+Below we check to see if any cells of the dataframe are NA, NULL, NaN, or infinite. No such values exist. We have a relatively clean dataset.
+
+```{r cleaning}
+# number of empty cells 
+finite <- apply(overdose, 2, function(x) any(is.infinite(x)))
+nans <- apply(overdose, 2, function(x) any(is.nan(x)))
+nas <- is.na(overdose) 
+nulls <- is.null(overdose)
+any(finite | nans | nas | nulls)
+```
+
+We now consider the possibility of multicollinearity. As shown below, some of the quantitative features of our dataset are highly correlated (population and imports, imports and exports,...). In order to handle this multicolinearity, we will consider ensemble models such as random forests.
+
+```{r collinearity}
+cor(overdose[,c(6:11, 13)])
+```
+
 
 ```{r toy}
 colors_use <- sample(colors(distinct = T), size = 51, replace = F)
