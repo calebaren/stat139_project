@@ -18,7 +18,7 @@ require(lme4)
 
 \section{Introduction and Motivation}
 
-Overdose deaths in the US have increased dramatically since 1999. Opioid use deaths in particular have reached epidemic levels, with a 200\% increase in overdose deaths between 2000 and 2014 [@Ghertner2018]. The Centers for Disease Control and Prevention estimates that over 60,000 drug overdose deaths occurred in 2016, three times the rate of drug deaths as 1999 [@Hedegaard2018]
+Overdose deaths in the US have increased dramatically since 1999. Opioid use deaths in particular have reached epidemic levels, with a 200\% increase in overdose deaths between 2000 and 2014 [@Ghertner2018]. The Centers for Disease Control and Prevention estimates that over 60,000 drug overdose deaths occurred in 2016, three times the rate of drug deaths as 1999 [@Hedegaard2018]. Reports in the literature from the CDC and other health journals have established a clear individual-level relationship of risk of drug overdose with rates of Medicaid and private insurance coverage [@Hedegaard2018], codependence on other drugs [@Seth2018], and is notably prevalent among working class non-Hispanic Whites in America [@Nolan2016].
 
 Our analysis has two goals. First, we will determine the significane of unemployment when predicting overdose death rates, and validate this significance in the presence of other predictors. Second, we will determine which model from a set of possible, well-tuned models has the most predictive ability.
 
@@ -292,11 +292,11 @@ plot_state <- function(v) {
   plot(mydf[,v][order(mydf$dates)] ~ mydf$dates[order(mydf$dates)],
        type = "l",
        ylim = range(overdose[,v]), 
-       col = alpha(col_state[1], 0.4), xlab = "", ylab = v)
+       col = alpha(col_state[1], 0.7), xlab = "", ylab = "", main = v)
   for (i in 2:(length(states))) {
     mydf <- subset(overdose, state == states[i])
     lines(mydf[,v][order(mydf$dates)] ~ mydf$dates[order(mydf$dates)],
-          col = col_state[i])
+          col = alpha(col_state[i], 0.7))
   }
 }
 
@@ -309,7 +309,7 @@ plot_region <- function(v) {
   plot(temp ~ as.Date(names(temp)),
        type = "l",
        ylim = range(overdose[,v]), 
-       col = col_reg[1], xlab = "", ylab = v)
+       col = col_reg[1], xlab = "", ylab = "", main = v)
   for (i in 2:(length(regions))) {
     mydf <- subset(overdose, region == regions[i])
     temp <- unlist(by(mydf, mydf$dates, 
@@ -320,7 +320,7 @@ plot_region <- function(v) {
   }
 }
 
-par(mfrow = c(2, 4), mar = c(2, 4, 1, 1))
+par(mfrow = c(2, 4), mar = c(2, 4, 2, 2))
 for (v in c("overdoseDeaths", "unemployment", "permits", "imports", 
             "exports", "income", "population")) {
   plot_state(v)
@@ -329,7 +329,7 @@ plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
 legend(0, 1, legend = states, cex=0.5, bty='n',
     fill = col_state, ncol = 4)
 
-par(mfrow = c(2, 4), mar = c(2, 4, 1, 1))
+par(mfrow = c(2, 4), mar = c(2, 4, 2, 2))
 for (v in c("overdoseDeaths", "unemployment", "permits", "imports", 
             "exports", "income", "population")) {
   plot_region(v)
