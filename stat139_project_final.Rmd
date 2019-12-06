@@ -245,7 +245,6 @@ overdose$region[overdose$state == "DC"] <- "South"
 overdose$region <- factor(overdose$region)
 ```
 
-<<<<<<< HEAD
 Normalize overdose deaths, permits, and imports. These variables are now relative values per 100000 people. 
 
 ```{r normal}
@@ -254,9 +253,8 @@ overdose$overdoseDeaths <- (overdose$overdoseDeaths / overdose$population) * 100
 overdose$permits <- (overdose$permits / overdose$population) * 100000
 overdose$imports <- (overdose$imports / overdose$population) * 100000
 ```
-=======
+
 \subsection{EDA}
->>>>>>> 4e20851c5972817f7f45fe8698b388fa7e0bbdac
 
 ```{r toy}
 colors_use <- sample(colors(distinct = T), size = 51, replace = F)
@@ -383,6 +381,11 @@ lasso.cv <- glmnet(X, y, lambda = 10^seq(-4, 4, 0.01), alpha = 1)
 lasso.cv <- cv.glmnet(X, y, alpha = 1)
 
 # feature importance plot
+<<<<<<< HEAD
+matplot(log(lasso.cv$lambda, 10), t(lasso.cv$beta), type = "l",
+        main = "Lasso Feature Selection", xlab = "log(lambda)", ylab = "beta")
+legend("topright", colnames(X)[1:14], col = seq_len(ncol(X)[1:14]), fill = seq_len(14))
+=======
 plot(lasso.cv$glmnet.fit, "lambda", main = "Lasso Feature Selection", 
      xlab = "log(lambda)", ylab = "Beta")
 
@@ -390,16 +393,17 @@ plot(lasso.cv$glmnet.fit, "lambda", main = "Lasso Feature Selection",
         # main = "Lasso Feature Selection", xlab = "log(lambda)", ylab = "beta")
 legend("topleft", colnames(X), col = seq_len(ncol(X)), fill = seq_len(ncol(X)), cex = 0.3)
 
+>>>>>>> 263d03a2c0a15a5037aa1601e8bb58161e4e6aa1
 ```
 
-Lasso feature selection agrees with the results of the ESS F-test. Unemployment (the non-quadratic effect) is one of the last coefficients to shrink to zero along with population and imports. We further corroborate this conclusion with a random forest model. Below, we fit a random forest model with all main effects and then examine it's relative feature importance.
+Lasso feature selection agrees with the results of the ESS F-test. Unemployment (the quadratic effect in this case) is one of the last coefficients to shrink to zero along with population. We further test this conclusion with a random forest model. Below, we fit a random forest model with all main effects and then examine it's relative feature importance.
 
-```{r}
+```{r rf}
 library(randomForest) # package
 
 # random forest
 rf1 <- randomForest(overdoseDeaths ~ unemployment + permits + 
-                      imports + income + population + region, 
+                      imports + income + population + region + state, 
                     data = overdose, mtry = 3, ntree = 500)
 
 # feature importance
@@ -407,7 +411,14 @@ varImpPlot(rf1, main = "Random Forest Feature Importance", pch = 20,
            cex = 1.5)
 ```
 
-Unemployment is relatively not important in the random forest model.
+Unemployment is relatively not important in the random forest model. 
+
+```{r mixed}
+library(lme4) # package
+
+# mixed effects model
+lmer1 <- lmer(overdoseDeaths ~ year + month + (1 | year) + (1 | month) + (1 | state), data = overdoseDeaths)
+```
 
 \section{Results}
 
