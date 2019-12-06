@@ -287,7 +287,7 @@ cor(overdose[,c(6:11, 13)])
 
 
 ```{r toy}
-colors_use <- sample(colors(distinct = T), size = 51, replace = F)
+colors_use <- sample(rainbow(51))
 states <- levels(overdose$state)
 
 plot_state <- function(v) {
@@ -303,25 +303,54 @@ plot_state <- function(v) {
   }
 }
 
+regions <- levels(overdose$region)
+plot_region <- function(v) {
+  mydf <- subset(overdose, region == regions[1])
+  temp <- unlist(by(mydf, mydf$dates, 
+             FUN = function(x) {weighted.mean(x[,v], x[,"population"])}, 
+             simplify =F))
+  plot(temp ~ as.Date(names(temp)),
+       type = "l",
+       ylim = range(overdose[,v]), 
+       col = colors_use[1], xlab = "", ylab = v)
+  for (i in 2:(length(regions))) {
+    mydf <- subset(overdose, region == regions[i])
+    temp <- unlist(by(mydf, mydf$dates, 
+             FUN = function(x) {weighted.mean(x[,v], x[,"population"])}, 
+             simplify =F))
+    lines(temp ~ as.Date(names(temp)),
+          col = colors_use[i])
+  }
+}
+
 par(mfrow = c(2, 4), mar = c(2, 4, 1, 1))
 for (v in c("overdoseDeaths", "unemployment", "permits", "imports", 
             "exports", "income", "population")) {
   plot_state(v)
 }
 
+par(mfrow = c(2, 4), mar = c(2, 4, 1, 1))
+for (v in c("overdoseDeaths", "unemployment", "permits", "imports", 
+            "exports", "income", "population")) {
+  plot_region(v)
+}
+plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+legend("bottomleft", legend =regions, cex=2, bty='n',
+    fill = colors_use[1:4])
+
 ```
 
 ```{r}
 # histogram and boxplot of response
-par(mfrow = c(2, 2), mar = c(2, 1, 1, 1))
+par(mfrow = c(2, 2), mar = c(2, 2, 1, 1))
 hist(overdose$overdoseDeaths, main = "Histogram of Overdose Deaths", 
-     xlab = "Overdose Deaths")
+     xlab = "Overdose Deaths", col = "grey")
 boxplot(overdose$overdoseDeaths, main = "Boxplot of Overdose Deaths", 
         xlab = "Overdose Deaths")
 
 # histogram and boxplot of log-response
 hist(log(overdose$overdoseDeaths), main = "Histogram of Log-Overdose Deaths", 
-     xlab = "Log-Overdose Deaths")
+     xlab = "Log-Overdose Deaths", col = "grey")
 boxplot(log(overdose$overdoseDeaths), main = "Boxplot of Log-Overdose Deaths", 
         xlab = "Log-Overdose Deaths")
 ```
@@ -430,7 +459,7 @@ poly2.train <- rmse(predict(polynomial2, train), log(train$overdoseDeaths))
 poly2.test <- rmse(predict(polynomial2, test), log(test$overdoseDeaths))
 
 # check model assumptions
-plot(polynomial2, which = 3, pch = 19, col = rgb(0, 0, 0, 0.3))
+plot(polynomial2, which = 3, pch = 19, col = rgb(0, 0, 0, 0.3), sub.caption="")
 ```
 
 With an F-statistic of $17.359$ (with $1881$, $2$ degrees of freedom) and a corresponding p-value $<0.001$, unemployment provides significant predictive ability. Additionally, there seems to be no underlying structure to the residuals, the residuals appear to have reasonably constant variance, and are reasonably normally distributed: the assumptions of our models (linearity, homoscedasticity of residuals, and normality) appear to be satisfied.
@@ -449,8 +478,8 @@ lasso.cv <- cv.glmnet(X, y, alpha = 1)
 cols <- c(1,64:79)
 plot(lasso.cv$glmnet.fit, "lambda", main = "Lasso Feature Selection",
      xlab = "log(lambda)", ylab = "beta")
-legend("topleft", colnames(X)[c(1,64:79)], col = seq_len(length(cols)), 
-       fill = seq_len(length(cols)))
+legend("bottomright", colnames(X)[c(1,64:79)], col = seq_len(length(cols)), 
+       fill = seq_len(length(cols)), cex = 0.3)
 
 # predictive results
 lasso.train <- sqrt(min(lasso.cv$cvm))
