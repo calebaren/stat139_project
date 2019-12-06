@@ -241,8 +241,17 @@ for (i in 1:length(state.region)) {
   overdose$region[overdose$state == state.abb[i]] <- as.character(state.region[i])
 }
 overdose$region[overdose$state == "DC"] <- "South"
+overdose$region <- factor(overdose$region)
 ```
 
+Normalize overdose deaths, permits, and imports. These variables are now relative values per 100000 people. 
+
+```{r normal}
+# normalize raw predictors
+overdose$overdoseDeaths <- (overdose$overdoseDeaths / overdose$population) * 100000
+overdose$permits <- (overdose$permits / overdose$population) * 100000
+overdose$imports <- (overdose$imports / overdose$population) * 100000
+```
 
 
 \subsection{EDA}
@@ -292,6 +301,63 @@ x <- seq(min(overdose$unemployment), max(overdose$unemployment), 0.01)
 y <- predict(lm1, newdata = data.frame(unemployment = x))
 lines(y ~ x, col = "red", lwd = 3)
 ```
+
+In order to better evaluate the importance of unemployment, we apply an ESS F-test. First, we fit two models: the first model contains all main effects and their respective quadratic versions besides unemployment. The second model contains the same predictors, except that it includes unemployment and its quadratic effect. Here we note that we are ignoring any time effect as of now. Additionally, we again verify the assumptions of a linear model via a plot of residuals vs. fitten values.
+
+```{r polynomial}
+# kitchen sink model without unemployment
+polynomial1 <- lm(overdoseDeaths ~ poly(permits, 2, raw = T) + 
+                    poly(imports, 2, raw = T) + poly(income, 2, raw = T) + 
+                    poly(population, 2, raw = T) + 
+                    region + state, data = overdose)
+
+# kitchen sink model with unemployment
+polynomial2 <- lm(overdoseDeaths ~ poly(unemployment, 2, raw = T) + 
+                    poly(permits, 2, raw = T) + poly(imports, 2, raw = T) + 
+                    poly(income, 2, raw = T) + poly(population, 2, raw = T) + 
+                    region + state, data = overdose)
+
+# ESS F-test
+anova(polynomial1, polynomial2)
+
+# check model assumptions
+plot(polynomial2, which = 3)
+```
+
+With an F-statistic of $12.208$ (with $2434$, $2$ degrees of freedom) and a corresponding p-value $<<0.001$, unemployment provides significant predictive ability. In order to be thorough, we examine the importance of unemployment in two additional ways: lasso regression, and random forrest regression. Additionally, there seems to be no underlying structure to the residuals, the residuals appear to have reasonably constant variance, and are reasonably normally distributed: the assumptions of our models (linearity, homoscedasticity of residuals, and normality) appear to be reasonably satisfied. As mentions above, we are purposefully ignoring a time effect so samples are likely correlated and thus not completely independent. We shall investigate this effect further in the analysis.
+
+We begin with lasso regression. Due to l1 penalty of lasso regression, less important variables quickly converge to zero as the regularization parameter increases. Below, we fit a lasso model (with the same dedign matrix as that of the full quadratic kitchen sink model) with a series of possible regularization parameters. We then consider the order in which the variable coefficients shrink to zero.
+
+```{r lasso} 
+library(glmnet) # package
+
+# design matrix and model
+X <- model.matrix(polynomial2)
+y <- overdose$overdoseDeaths
+lasso.cv <- glmnet(X, y, lambda = 10^seq(-4, 4, 0.01), alpha = 1)
+
+# feature importance plot
+matplot(log(lasso.cv$lambda, 10), t(lasso.cv$beta), type = "l",
+        main = "Lasso Feature Selection", xlab = "log(lambda)", ylab = "beta")
+legend("topright", colnames(X), col = seq_len(ncol(X)), fill = seq_len(ncol(X)))
+```
+
+Lasso feature selection agrees with the results of the ESS F-test. Unemployment (the non-quadratic effect) is one of the last coefficients to shrink to zero along with population and imports. We further corroborate this conclusion with a random forest model. Below, we fit a random forest model with all main effects and then examine it's relative feature importance.
+
+```{r}
+library(randomForest) # package
+
+# random forest
+rf1 <- randomForest(overdoseDeaths ~ unemployment + permits + 
+                      imports + income + population + region, 
+                    data = overdose, mtry = 3, ntree = 500)
+
+# feature importance
+varImpPlot(rf1, main = "Random Forest Feature Importance", pch = 20, 
+           cex = 1.5)
+```
+
+Unemployment is relatively not important in the random forest model.
 
 \section{Results}
 
