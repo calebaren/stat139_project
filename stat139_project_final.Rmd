@@ -5,11 +5,10 @@ date: "12/06/2019"
 geometry: margin = 2cm
 bibliography: bibliography.bib
 output: 
-  html_document: 
+  pdf_document: 
     toc: true
     number_sections: true
     fig_caption: yes
-    theme: united
 ---
 \newpage
 
@@ -295,7 +294,7 @@ corrplot.mixed(cor(overdose[,c(6:11, 13)]),
 ```
 
 
-```{r state, fig.height = 5, fig.cap='Plotting predictors and response by state. and region'}
+```{r state, fig.height = 5, fig.cap='Plotting predictors and response by state and region'}
 states <- levels(overdose$state)
 regions <- levels(overdose$region)
 col_state <- sample(rainbow(51))

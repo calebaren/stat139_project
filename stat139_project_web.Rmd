@@ -299,7 +299,7 @@ corrplot.mixed(cor(overdose[,c(6:11, 13)]),
 ```
 
 
-```{r state, fig.height = 6, fig.cap='Plotting predictors and response by state. and region'}
+```{r state, fig.height = 6, fig.cap='Plotting predictors and response by state and region'}
 states <- levels(overdose$state)
 regions <- levels(overdose$region)
 col_state <- sample(rainbow(51))
